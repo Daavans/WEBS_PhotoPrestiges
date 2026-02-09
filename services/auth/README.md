@@ -142,7 +142,7 @@ JWT_EXPIRY=24h
 JWT_REFRESH_EXPIRY=7d
 
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/photoprestiges
+DATABASE_URL=
 
 # Service Configuration
 PORT=3001

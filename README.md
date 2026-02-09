@@ -188,38 +188,43 @@ GET    /api/read/user/{id}      - Gebruikersprofiel met stats
 git clone https://github.com/Daavans/WEBS_PhotoPrestiges.git
 cd WEBS_PhotoPrestiges
 
-# Installeer dependencies voor elke service
+# Gedeelde .env in projectroot
+cp .env.example .env
+
+# Root: migrations (optioneel, voor database-indexes)
+npm install
+npm run migrate:up
+
+# Per service: dependencies
 cd services/auth && npm install
 cd ../register && npm install
-# ... herhaal voor elke service
+# ... herhaal voor andere services
 
-# Of gebruik Docker Compose
-docker-compose up -d
+# Of start Auth + Register + Mongo via Docker (gedeelde .env)
+npm run docker:up
+# Of: docker-compose up -d
 ```
+
+### Database migrations
+Migrations staan in de **projectroot** en gebruiken dezelfde MongoDB als Auth en Register. Draai ze vanuit de root (na `npm install`):
+
+```bash
+npm run migrate:up      # Alle pending migrations uitvoeren
+npm run migrate:down    # Laatste migration terugdraaien
+npm run migrate:status  # Status van migrations
+npm run migrate:create -- <beschrijving>  # Nieuwe migration aanmaken
+```
+
+Zorg dat `MONGODB_URI` (of `DATABASE_URL`) in `.env` staat. Bij Docker: draai migrations lokaal tegen `mongodb://localhost:27017/photoprestiges` of in een one-off container met dezelfde `MONGODB_URI`.
+
+### Register service starten
+- **Lokaal:** `cd services/register && npm install && npm start` (poort uit `REGISTER_SERVICE_PORT` of `PORT`, default 3002). Laadt `.env` uit de projectroot.
+- **Docker:** `docker-compose up -d` start naast Mongo en Auth ook Register op poort 3002.
 
 ### Configuratie
-Kopieer `.env.example` naar `.env` en vul de vereiste credentials in:
-```
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/photoprestiges
+Eén gedeelde `.env` in de **projectroot** voor alle services. Auth en Register laden deze .env.
 
-# Cloud Storage
-CLOUD_STORAGE_BUCKET=my-bucket
-CLOUD_STORAGE_KEY=xxx
-
-# Image Analysis
-IMAGGA_API_KEY=xxx
-IMAGGA_API_SECRET=xxx
-GOOGLE_VISION_API_KEY=xxx
-
-# Email
-SENDGRID_API_KEY=xxx
-EMAIL_FROM=noreply@photoprestiges.com
-
-# JWT
-JWT_SECRET=your-secret-key
-JWT_EXPIRY=24h
-```
+Vereist o.a.: `MONGODB_URI`, `JWT_SECRET`, `AUTH_SERVICE_PORT`, `REGISTER_SERVICE_PORT`. Zie `.env.example` voor alle opties.
 
 ## 📁 Project Structuur
 

@@ -46,8 +46,8 @@ Applicatie is ontworpen om optimaal gebruik te maken van cloud capabilities.
         ┌───────────────┼───────────────┐
         ▼               ▼               ▼
 ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│Public Services│ │Private       │ │Background    │
-│               │ │Services      │ │Services      │
+│Public Service│ │Private       │ │Background    │
+│              │ │Services      │ │Services      │
 │ - Read       │ │ - Auth       │ │ - Clock      │
 │ - Target     │ │ - Register   │ │ - Mail       │
 │ - Score      │ │              │ │              │

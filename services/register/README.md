@@ -1,5 +1,10 @@
 # Register Service
 
+## Starten
+- **Lokaal:** `npm install && npm start`. Poort: `REGISTER_SERVICE_PORT` of `PORT` (default 3002). Laadt `.env` uit de **projectroot**.
+- **Docker:** vanuit projectroot `docker-compose up -d`; register-service draait op poort 3002.
+Database migrations draaien vanuit de **projectroot**: `npm run migrate:up` (zie root README).
+
 ## Verantwoordelijkheid
 De Register Service beheert gebruikersregistratie, email verificatie en profielbeheer binnen het Photo Prestiges platform.
 

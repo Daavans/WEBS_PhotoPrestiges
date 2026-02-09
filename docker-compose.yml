@@ -1,164 +1,48 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: photoprestiges_db
-    environment:
-      POSTGRES_DB: photoprestiges
-      POSTGRES_USER: photouser
-      POSTGRES_PASSWORD: photopass
+  mongo:
+    image: mongo:7
+    container_name: photoprestiges_mongo
     ports:
-      - "5432:5432"
+      - "27017:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     networks:
       - photoprestiges_network
 
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: photoprestiges_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - photoprestiges_network
-
-  # Auth Service
   auth-service:
     build: ./services/auth
     container_name: auth_service
+    env_file:
+      - .env
     environment:
       PORT: 3001
-      DATABASE_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      JWT_SECRET: your-secret-key-change-in-production
-      JWT_EXPIRY: 24h
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges
     ports:
-      - "3001:3001"
+      - "${AUTH_SERVICE_PORT:-3001}:3001"
     depends_on:
-      - postgres
+      - mongo
     networks:
       - photoprestiges_network
 
-  # Register Service
   register-service:
     build: ./services/register
     container_name: register_service
+    env_file:
+      - .env
     environment:
       PORT: 3002
-      DATABASE_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      MAIL_SERVICE_URL: http://mail-service:3005
-      AUTH_SERVICE_URL: http://auth-service:3001
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges
     ports:
-      - "3002:3002"
+      - "${REGISTER_SERVICE_PORT:-3002}:3002"
     depends_on:
-      - postgres
-      - auth-service
-    networks:
-      - photoprestiges_network
-
-  # Target Service
-  target-service:
-    build: ./services/target
-    container_name: target_service
-    environment:
-      PORT: 3003
-      DATABASE_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      AUTH_SERVICE_URL: http://auth-service:3001
-      # Cloud storage credentials (configure before use)
-      # AWS_ACCESS_KEY_ID: your_key
-      # AWS_SECRET_ACCESS_KEY: your_secret
-      # AWS_S3_BUCKET: your_bucket
-      # IMAGGA_API_KEY: your_key
-      # GOOGLE_VISION_API_KEY: your_key
-    ports:
-      - "3003:3003"
-    depends_on:
-      - postgres
-      - auth-service
-    networks:
-      - photoprestiges_network
-
-  # Score Service
-  score-service:
-    build: ./services/score
-    container_name: score_service
-    environment:
-      PORT: 3004
-      DATABASE_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      REDIS_URL: redis://redis:6379
-      AUTH_SERVICE_URL: http://auth-service:3001
-      TARGET_SERVICE_URL: http://target-service:3003
-      MAIL_SERVICE_URL: http://mail-service:3005
-    ports:
-      - "3004:3004"
-    depends_on:
-      - postgres
-      - redis
-      - auth-service
-    networks:
-      - photoprestiges_network
-
-  # Mail Service
-  mail-service:
-    build: ./services/mail
-    container_name: mail_service
-    environment:
-      PORT: 3005
-      DATABASE_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      AUTH_SERVICE_URL: http://auth-service:3001
-      # Email provider credentials (configure before use)
-      # SENDGRID_API_KEY: your_key
-      # EMAIL_FROM: noreply@photoprestiges.com
-    ports:
-      - "3005:3005"
-    depends_on:
-      - postgres
-    networks:
-      - photoprestiges_network
-
-  # Clock Service
-  clock-service:
-    build: ./services/clock
-    container_name: clock_service
-    environment:
-      PORT: 3006
-      DATABASE_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      SCORE_SERVICE_URL: http://score-service:3004
-      MAIL_SERVICE_URL: http://mail-service:3005
-      TARGET_SERVICE_URL: http://target-service:3003
-      AUTH_SERVICE_URL: http://auth-service:3001
-      TZ: Europe/Amsterdam
-    ports:
-      - "3006:3006"
-    depends_on:
-      - postgres
-    networks:
-      - photoprestiges_network
-
-  # Read Service
-  read-service:
-    build: ./services/read
-    container_name: read_service
-    environment:
-      PORT: 3007
-      DATABASE_READ_URL: postgresql://photouser:photopass@postgres:5432/photoprestiges
-      REDIS_URL: redis://redis:6379
-      AUTH_SERVICE_URL: http://auth-service:3001
-    ports:
-      - "3007:3007"
-    depends_on:
-      - postgres
-      - redis
+      - mongo
     networks:
       - photoprestiges_network
 
 volumes:
-  postgres_data:
-  redis_data:
+  mongo_data:
 
 networks:
   photoprestiges_network:
