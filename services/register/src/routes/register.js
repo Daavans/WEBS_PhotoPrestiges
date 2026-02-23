@@ -34,24 +34,28 @@ const registerValidators = [
   body('lastName').optional({ values: 'falsy' }).trim().isLength({ max: 255 }),
 ];
 
-router.post('/', registerLimiter, registerValidators, async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+router.post('/', registerLimiter, registerValidators, async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+    const { email, password, username, firstName, lastName } = req.body;
+    const result = await registerService.register({ email, password, username, firstName, lastName });
+    if (result.conflict === 'email') {
+      return res.status(409).json({ success: false, message: 'Email already registered' });
+    }
+    if (result.conflict === 'username') {
+      return res.status(409).json({ success: false, message: 'Username already taken' });
+    }
+    res.status(201).json({
+      success: true,
+      message: result.message,
+      userId: result.userId,
+    });
+  } catch (err) {
+    next(err);
   }
-  const { email, password, username, firstName, lastName } = req.body;
-  const result = await registerService.register({ email, password, username, firstName, lastName });
-  if (result.conflict === 'email') {
-    return res.status(409).json({ success: false, message: 'Email already registered' });
-  }
-  if (result.conflict === 'username') {
-    return res.status(409).json({ success: false, message: 'Username already taken' });
-  }
-  res.status(201).json({
-    success: true,
-    message: result.message,
-    userId: result.userId,
-  });
 });
 
 router.get('/verify', query('token').notEmpty().withMessage('token required'), async (req, res) => {

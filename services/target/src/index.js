@@ -15,7 +15,7 @@ const app = require('./app');
 async function start() {
   await connect();
   app.listen(config.port, () => {
-    console.log(`Auth service listening on port ${config.port}`);
+    console.log(`Target service listening on port ${config.port}`);
   });
 }
 

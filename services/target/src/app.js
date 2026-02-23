@@ -3,7 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const config = require('./config');
-const authRoutes = require('./routes/auth');
+const targetRoutes = require('./routes/target');
 
 const app = express();
 
@@ -19,15 +19,16 @@ const generalLimiter = rateLimit({
   max: 100,
   message: { success: false, message: 'Too many requests' },
 });
-const loginLimiter = rateLimit({
+
+const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
-  message: { success: false, message: 'Too many login attempts' },
+  max: 20,
+  message: { success: false, message: 'Too many upload requests' },
 });
 
-app.use('/api/auth', generalLimiter);
-app.use('/api/auth/login', loginLimiter);
-app.use('/api/auth', authRoutes);
+app.use('/api/target', generalLimiter);
+app.use('/api/target/upload', uploadLimiter);
+app.use('/api/target', targetRoutes);
 
 app.get('/health', async (req, res) => {
   try {
@@ -44,6 +45,7 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
+  console.error(err);
   res.status(500).json({ success: false, message: 'Internal server error' });
 });
 

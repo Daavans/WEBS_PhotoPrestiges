@@ -1,7 +1,8 @@
-FROM node:18-alpine
+FROM node:18
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY src ./src
-EXPOSE 3002
+RUN mkdir -p /uploads/photos /uploads/thumbnails
+EXPOSE 3003
 CMD ["node", "src/index.js"]
