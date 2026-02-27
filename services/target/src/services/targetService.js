@@ -5,9 +5,6 @@ const { validateDimensions, generateThumbnail } = require('../utils/thumbnail');
 const { storePhoto, storeThumbnail } = require('../utils/storage');
 const { analyseImage, isFlagged } = require('../utils/analysis');
 
-/**
- * Normalise file format from multer mimetype.
- */
 function getFormat(mimetype) {
   const map = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
   return map[mimetype] || 'jpg';

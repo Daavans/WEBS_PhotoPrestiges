@@ -25,7 +25,7 @@ module.exports = {
 
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
 
-  imaggaApiKey: process.env.IMAGGA_API_KEY || null,
-  imaggaApiSecret: process.env.IMAGGA_API_SECRET || null,
+  imaggaApiKey: process.env.IMAGGA_API_KEY || 'acc_6e78e462d3081b4',
+  imaggaApiSecret: process.env.IMAGGA_API_SECRET || 'be69ab9db3c1176a88f16d35943e19bc',
   googleVisionApiKey: process.env.GOOGLE_VISION_API_KEY || null,
 };
