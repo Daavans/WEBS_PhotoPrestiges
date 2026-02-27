@@ -41,8 +41,28 @@ services:
     networks:
       - photoprestiges_network
 
+  target-service:
+    build: ./services/target
+    container_name: target_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3003
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges
+      UPLOAD_DIR: /uploads
+      BASE_URL: http://localhost:3003
+    ports:
+      - "${TARGET_SERVICE_PORT:-3003}:3003"
+    volumes:
+      - target_uploads:/uploads
+    depends_on:
+      - mongo
+    networks:
+      - photoprestiges_network
+
 volumes:
   mongo_data:
+  target_uploads:
 
 networks:
   photoprestiges_network:
