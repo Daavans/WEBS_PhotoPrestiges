@@ -32,11 +32,15 @@ router.post('/login', loginValidators, async (req, res) => {
   });
 });
 
-router.post('/logout', requireAuth, async (req, res) => {
-  try {
-    await authService.logout(req.token);
-  } catch (err) {
-    // still respond success; token may already be expired
+router.post('/logout', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      await authService.logout(token);
+    } catch (err) {
+      // session may already be gone, still respond success
+    }
   }
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 });

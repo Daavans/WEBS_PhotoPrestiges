@@ -24,6 +24,7 @@ module.exports = {
   baseUrl: process.env.BASE_URL || 'http://localhost:3003',
 
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
+  scoreServiceUrl: process.env.SCORE_SERVICE_URL || 'http://localhost:3004',
 
   imaggaApiKey: process.env.IMAGGA_API_KEY || 'acc_6e78e462d3081b4',
   imaggaApiSecret: process.env.IMAGGA_API_SECRET || 'be69ab9db3c1176a88f16d35943e19bc',

@@ -1,17 +1,35 @@
 const axios = require('axios');
+const FormData = require('form-data');
 const config = require('../config');
 
-async function analyseWithImagga(imageUrl) {
+function getAuthHeader() {
+  return `Basic ${Buffer.from(`${config.imaggaApiKey}:${config.imaggaApiSecret}`).toString('base64')}`;
+}
+
+/**
+ * Upload a base64 data URL to Imagga and return the upload_id.
+ * All subsequent Imagga calls use the upload_id instead of the raw base64.
+ */
+async function uploadToImagga(dataUrl) {
+  const raw = dataUrl.startsWith('data:') ? dataUrl.split(',')[1] : dataUrl;
+  const form = new FormData();
+  form.append('image_base64', raw);
+  const res = await axios.post('https://api.imagga.com/v2/uploads', form, {
+    headers: { Authorization: getAuthHeader(), ...form.getHeaders() },
+  });
+  return res.data.result.upload_id;
+}
+
+async function analyseWithImagga(dataUrl) {
   if (!config.imaggaApiKey || !config.imaggaApiSecret) return null;
 
   try {
-    const auth = Buffer.from(`${config.imaggaApiKey}:${config.imaggaApiSecret}`).toString('base64');
-    const headers = { Authorization: `Basic ${auth}` };
-    const encodedUrl = encodeURIComponent(imageUrl);
+    const uploadId = await uploadToImagga(dataUrl);
+    const headers = { Authorization: getAuthHeader() };
 
     const [tagsRes, colorsRes] = await Promise.all([
-      axios.get(`https://api.imagga.com/v2/tags?image_url=${encodedUrl}`, { headers }),
-      axios.get(`https://api.imagga.com/v2/colors?image_url=${encodedUrl}`, { headers }),
+      axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${uploadId}`, { headers }),
+      axios.get(`https://api.imagga.com/v2/colors?image_upload_id=${uploadId}`, { headers }),
     ]);
 
     return {
@@ -23,7 +41,7 @@ async function analyseWithImagga(imageUrl) {
       colors: colorsRes.data.result.colors.image_colors.map((c) => c.html_code),
     };
   } catch (err) {
-    console.warn('Imagga analysis failed:', err.message);
+    console.warn('Imagga analysis failed:', err.response?.data || err.message);
     return null;
   }
 }
@@ -84,4 +102,29 @@ function isFlagged(analysis) {
   return unsafe.includes(ss.adult) || unsafe.includes(ss.violence);
 }
 
-module.exports = { analyseImage, isFlagged };
+
+async function compareImages(dataUrlA, dataUrlB) {
+  if (!config.imaggaApiKey || !config.imaggaApiSecret) {
+    throw new Error('Imagga credentials not configured');
+  }
+
+  try {
+    const [idA, idB] = await Promise.all([
+      uploadToImagga(dataUrlA),
+      uploadToImagga(dataUrlB),
+    ]);
+
+    const res = await axios.get('https://api.imagga.com/v2/images/similarity', {
+      headers: { Authorization: getAuthHeader() },
+      params: { image_upload_id: idA, image_upload_id2: idB },
+    });
+
+    const score = res.data?.result?.score;
+    return typeof score === 'number' ? Math.round(score * 100) / 100 : null;
+  } catch (err) {
+    console.warn('Imagga similarity comparison failed:', err.response?.data || err.message);
+    return null;
+  }
+}
+
+module.exports = { analyseImage, isFlagged, compareImages };
