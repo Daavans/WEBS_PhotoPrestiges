@@ -103,6 +103,21 @@ function isFlagged(analysis) {
 }
 
 
+function tagBasedSimilarity(tagsA, tagsB) {
+  if (!tagsA?.length || !tagsB?.length) return 0;
+  const toMap = (tags) =>
+    Object.fromEntries(tags.map((t) => [t.tag.en, t.confidence / 100]));
+  const mapA = toMap(tagsA);
+  const mapB = toMap(tagsB);
+  const common = Object.keys(mapA).filter((t) => mapB[t] != null);
+  if (common.length === 0) return 0;
+  const matchScore = common.reduce((s, t) => s + (mapA[t] + mapB[t]) / 2, 0);
+  const totalA = Object.values(mapA).reduce((a, b) => a + b, 0);
+  const totalB = Object.values(mapB).reduce((a, b) => a + b, 0);
+  const maxPossible = (totalA + totalB) / 2;
+  return maxPossible > 0 ? matchScore / maxPossible : 0;
+}
+
 async function compareImages(dataUrlA, dataUrlB) {
   if (!config.imaggaApiKey || !config.imaggaApiSecret) {
     throw new Error('Imagga credentials not configured');
@@ -114,12 +129,15 @@ async function compareImages(dataUrlA, dataUrlB) {
       uploadToImagga(dataUrlB),
     ]);
 
-    const res = await axios.get('https://api.imagga.com/v2/images/similarity', {
-      headers: { Authorization: getAuthHeader() },
-      params: { image_upload_id: idA, image_upload_id2: idB },
-    });
+    const headers = { Authorization: getAuthHeader() };
+    const [resA, resB] = await Promise.all([
+      axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${idA}`, { headers }),
+      axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${idB}`, { headers }),
+    ]);
 
-    const score = res.data?.result?.score;
+    const tagsA = resA.data?.result?.tags;
+    const tagsB = resB.data?.result?.tags;
+    const score = tagBasedSimilarity(tagsA, tagsB);
     return typeof score === 'number' ? Math.round(score * 100) / 100 : null;
   } catch (err) {
     console.warn('Imagga similarity comparison failed:', err.response?.data || err.message);
