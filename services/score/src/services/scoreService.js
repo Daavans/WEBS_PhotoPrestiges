@@ -1,0 +1,58 @@
+const { getDb } = require('../db/connect');
+const queries = require('../db/queries');
+
+async function recordSubmission({ submissionId, targetPhotoId, userId, score, submittedAt }) {
+  if (typeof score !== 'number' || score < 0 || score > 100) {
+    return { error: 'Score must be a number between 0 and 100' };
+  }
+
+  const db = getDb();
+  await queries.upsertSubmissionScore(db, { submissionId, targetPhotoId, userId, score, submittedAt });
+  return { success: true };
+}
+
+async function getLeaderboard({ limit = 50, offset = 0, targetPhotoId } = {}) {
+  const db = getDb();
+  const { items, total } = await queries.findLeaderboard(db, { limit, offset, targetPhotoId });
+  return {
+    leaderboard: items.map((s, i) => ({
+      rank: offset + i + 1,
+      submissionId: s.submissionId,
+      targetPhotoId: s.targetPhotoId.toString(),
+      userId: s.userId.toString(),
+      score: s.score,
+      submittedAt: s.submittedAt,
+    })),
+    total,
+    limit,
+    offset,
+  };
+}
+
+async function getPhotoScores(targetPhotoId, { limit = 20, offset = 0 } = {}) {
+  const db = getDb();
+  const { items, total } = await queries.findScoresByTargetPhoto(db, targetPhotoId, { limit, offset });
+  return {
+    scores: items.map((s, i) => ({
+      rank: offset + i + 1,
+      submissionId: s.submissionId,
+      userId: s.userId.toString(),
+      score: s.score,
+      submittedAt: s.submittedAt,
+    })),
+    total,
+    limit,
+    offset,
+  };
+}
+
+async function getUserStats(userId) {
+  const db = getDb();
+  const [stats, rank] = await Promise.all([
+    queries.findUserStats(db, userId),
+    queries.findUserRank(db, userId),
+  ]);
+  return { userId, rank, ...stats };
+}
+
+module.exports = { recordSubmission, getLeaderboard, getPhotoScores, getUserStats };

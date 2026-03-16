@@ -60,6 +60,21 @@ services:
     networks:
       - photoprestiges_network
 
+  score-service:
+    build: ./services/score
+    container_name: score_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3004
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges
+    ports:
+      - "${SCORE_SERVICE_PORT:-3004}:3004"
+    depends_on:
+      - mongo
+    networks:
+      - photoprestiges_network
+
 volumes:
   mongo_data:
   target_uploads:
