@@ -62,6 +62,48 @@ async function updateAnalysis(db, id, analysis) {
   );
 }
 
+// ── Submissions ───────────────────────────────────────────────────────────────
+
+async function createSubmission(db, doc) {
+  const submissions = db.collection('submissions');
+  const now = new Date();
+  const result = await submissions.insertOne({ ...doc, submittedAt: now, updatedAt: now });
+  return result.insertedId;
+}
+
+async function findSubmissionById(db, id) {
+  const submissions = db.collection('submissions');
+  return submissions.findOne({ _id: new ObjectId(id) });
+}
+
+async function findSubmissionByUserAndTarget(db, userId, targetPhotoId) {
+  const submissions = db.collection('submissions');
+  return submissions.findOne({
+    userId: new ObjectId(userId),
+    targetPhotoId: new ObjectId(targetPhotoId),
+  });
+}
+
+async function findSubmissionsByTargetId(db, targetPhotoId, { page = 1, limit = 20 } = {}) {
+  const submissions = db.collection('submissions');
+  const skip = (page - 1) * limit;
+  const filter = { targetPhotoId: new ObjectId(targetPhotoId) };
+  const [items, total] = await Promise.all([
+    submissions.find(filter).sort({ score: -1, submittedAt: -1 }).skip(skip).limit(limit).toArray(),
+    submissions.countDocuments(filter),
+  ]);
+  return { items, total };
+}
+
+async function updateSubmission(db, id, updates) {
+  const submissions = db.collection('submissions');
+  return submissions.findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    { $set: { ...updates, updatedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+}
+
 module.exports = {
   createPhoto,
   findPhotoById,
@@ -70,4 +112,9 @@ module.exports = {
   softDeletePhoto,
   incrementViews,
   updateAnalysis,
+  createSubmission,
+  findSubmissionById,
+  findSubmissionByUserAndTarget,
+  findSubmissionsByTargetId,
+  updateSubmission,
 };

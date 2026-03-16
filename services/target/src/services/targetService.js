@@ -1,9 +1,11 @@
 const { ObjectId } = require('mongodb');
+const axios = require('axios');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
+const config = require('../config');
 const { validateDimensions, generateThumbnail } = require('../utils/thumbnail');
 const { storePhoto, storeThumbnail } = require('../utils/storage');
-const { analyseImage, isFlagged } = require('../utils/analysis');
+const { analyseImage, isFlagged, compareImages } = require('../utils/analysis');
 
 function getFormat(mimetype) {
   const map = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -18,7 +20,7 @@ function getFormat(mimetype) {
  * 4. Save metadata to DB
  * 5. Kick off analysis in background
  */
-async function uploadPhoto({ file, title, description, tags, userId }) {
+async function uploadPhoto({ file, title, description, tags, userId, type = 'photo' }) {
   const format = getFormat(file.mimetype);
   const buffer = file.buffer;
 
@@ -65,6 +67,7 @@ async function uploadPhoto({ file, title, description, tags, userId }) {
     status: 'active',
     tags: parsedTags,
     analysis: null,
+    type, 
   };
 
   const photoId = await queries.createPhoto(db, doc);
@@ -181,6 +184,7 @@ function formatPhoto(photo) {
     title: photo.title,
     description: photo.description,
     userId: photo.userId.toString(),
+    type: photo.type || 'photo',
     tags: photo.tags || [],
     analysis: photo.analysis || null,
     format: photo.format,
@@ -194,4 +198,136 @@ function formatPhoto(photo) {
   };
 }
 
-module.exports = { uploadPhoto, getPhoto, getUserPhotos, updatePhoto, deletePhoto };
+
+async function submitPhoto({ file, title, description, tags, userId, targetPhotoId }) {
+  const db = getDb();
+
+  // 1. Verify the target photo exists and is a target type
+  const targetPhoto = await queries.findPhotoById(db, targetPhotoId);
+  if (!targetPhoto) return { error: 'Target photo not found', status: 404 };
+  if (targetPhoto.status === 'flagged') return { error: 'Target photo is not available', status: 403 };
+
+  // 2. One submission per user per target
+  const existing = await queries.findSubmissionByUserAndTarget(db, userId, targetPhotoId);
+  if (existing) return { error: 'You have already submitted for this target', status: 409 };
+
+  const format = getFormat(file.mimetype);
+  const buffer = file.buffer;
+
+  // 3. Validate dimensions
+  const dimResult = await validateDimensions(buffer);
+  if (!dimResult.valid) return { error: dimResult.message, status: 400 };
+
+  // 4. Generate thumbnail and store
+  const thumbBuffer = await generateThumbnail(buffer, format);
+  const { url } = storePhoto(buffer, format);
+  const { thumbnailUrl } = storeThumbnail(thumbBuffer, format);
+
+  // 5. Compare with target photo via Imagga
+  let score = null;
+  try {
+    score = await compareImages(targetPhoto.url, url);
+  } catch (err) {
+    console.warn('Image comparison failed, storing submission without score:', err.message);
+  }
+
+  // 6. Parse user tags
+  let parsedTags = [];
+  if (Array.isArray(tags)) {
+    parsedTags = tags.map((t) => ({ tag: t.trim().toLowerCase(), source: 'user', confidence: 1 }));
+  } else if (typeof tags === 'string') {
+    try {
+      const arr = JSON.parse(tags);
+      parsedTags = arr.map((t) => ({ tag: t.trim().toLowerCase(), source: 'user', confidence: 1 }));
+    } catch {  }
+  }
+
+  // 7. Store submission in DB
+  const doc = {
+    userId: new ObjectId(userId),
+    targetPhotoId: new ObjectId(targetPhotoId),
+    title: (title || '').trim() || null,
+    description: (description || '').trim() || null,
+    url,
+    thumbnailUrl,
+    fileSize: file.size,
+    width: dimResult.width,
+    height: dimResult.height,
+    format,
+    tags: parsedTags,
+    score,          
+    analysis: null,
+  };
+
+  const submissionId = await queries.createSubmission(db, doc);
+
+  // 8. Notify score service (fire-and-forget)
+  if (score !== null && config.scoreServiceUrl) {
+    setImmediate(async () => {
+      try {
+        await axios.post(`${config.scoreServiceUrl}/api/score/submission`, {
+          submissionId: submissionId.toString(),
+          targetPhotoId,
+          userId,
+          score,
+        });
+      } catch (err) {
+        console.warn('Score service notification failed:', err.message);
+      }
+    });
+  }
+
+  // 9. Run content moderation in background
+  setImmediate(async () => {
+    try {
+      const analysis = await analyseImage(url);
+      const status = isFlagged(analysis) ? 'flagged' : 'active';
+      await queries.updateSubmission(db, submissionId.toString(), { analysis, status });
+    } catch (err) {
+      console.error('Background analysis failed for submission', submissionId, err.message);
+    }
+  });
+
+  return {
+    submission: {
+      id: submissionId.toString(),
+      targetPhotoId,
+      url,
+      thumbnailUrl,
+      title: doc.title,
+      description: doc.description,
+      userId,
+      score,
+      tags: parsedTags,
+      format,
+      fileSize: file.size,
+      width: dimResult.width,
+      height: dimResult.height,
+      submittedAt: new Date(),
+    },
+  };
+}
+
+async function getSubmissions(targetPhotoId, { page, limit }) {
+  const db = getDb();
+  const target = await queries.findPhotoById(db, targetPhotoId);
+  if (!target) return { error: 'Target photo not found', status: 404 };
+
+  const { items, total } = await queries.findSubmissionsByTargetId(db, targetPhotoId, { page, limit });
+  return {
+    submissions: items.map((s) => ({
+      id: s._id.toString(),
+      targetPhotoId: s.targetPhotoId.toString(),
+      userId: s.userId.toString(),
+      url: s.url,
+      thumbnailUrl: s.thumbnailUrl,
+      title: s.title,
+      score: s.score,
+      tags: s.tags || [],
+      submittedAt: s.submittedAt,
+    })),
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  };
+}
+
+module.exports = { uploadPhoto, getPhoto, getUserPhotos, updatePhoto, deletePhoto, submitPhoto, getSubmissions };
