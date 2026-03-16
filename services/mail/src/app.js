@@ -1,0 +1,45 @@
+const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const config = require('./config');
+const mailRoutes = require('./routes/mail');
+
+const app = express();
+
+app.use(helmet());
+app.use(cors({
+  origin: config.frontendUrl === '*' ? true : config.frontendUrl,
+  credentials: true,
+}));
+app.use(express.json({ limit: '10kb' }));
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { success: false, message: 'Too many requests' },
+});
+
+app.use('/api/mail', generalLimiter);
+app.use('/api/mail', mailRoutes);
+
+app.get('/health', async (req, res) => {
+  try {
+    const { getDb } = require('./db/connect');
+    getDb();
+    res.status(200).json({ status: 'ok', service: 'mail-service', db: 'connected' });
+  } catch (err) {
+    res.status(503).json({ status: 'error', service: 'mail-service', db: 'disconnected' });
+  }
+});
+
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Not found' });
+});
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ success: false, message: 'Internal server error' });
+});
+
+module.exports = app;

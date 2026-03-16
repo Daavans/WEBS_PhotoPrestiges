@@ -27,10 +27,8 @@ async function analyseWithImagga(dataUrl) {
     const uploadId = await uploadToImagga(dataUrl);
     const headers = { Authorization: getAuthHeader() };
 
-    const [tagsRes, colorsRes] = await Promise.all([
-      axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${uploadId}`, { headers }),
-      axios.get(`https://api.imagga.com/v2/colors?image_upload_id=${uploadId}`, { headers }),
-    ]);
+    const tagsRes = await axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${uploadId}`, { headers });
+    const colorsRes = await axios.get(`https://api.imagga.com/v2/colors?image_upload_id=${uploadId}`, { headers });
 
     return {
       tags: tagsRes.data.result.tags.map((t) => ({
@@ -124,16 +122,12 @@ async function compareImages(dataUrlA, dataUrlB) {
   }
 
   try {
-    const [idA, idB] = await Promise.all([
-      uploadToImagga(dataUrlA),
-      uploadToImagga(dataUrlB),
-    ]);
+    const idA = await uploadToImagga(dataUrlA);
+    const idB = await uploadToImagga(dataUrlB);
 
     const headers = { Authorization: getAuthHeader() };
-    const [resA, resB] = await Promise.all([
-      axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${idA}`, { headers }),
-      axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${idB}`, { headers }),
-    ]);
+    const resA = await axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${idA}`, { headers });
+    const resB = await axios.get(`https://api.imagga.com/v2/tags?image_upload_id=${idB}`, { headers });
 
     const tagsA = resA.data?.result?.tags;
     const tagsB = resB.data?.result?.tags;

@@ -1,5 +1,21 @@
 const { ObjectId } = require('mongodb');
 
+async function findPhotoOwnerEmail(db, targetPhotoId) {
+  const photos = db.collection('photos');
+  const photo = await photos.findOne(
+    { _id: new ObjectId(targetPhotoId) },
+    { projection: { userId: 1, title: 1 } }
+  );
+  if (!photo) return null;
+  const users = db.collection('users');
+  const user = await users.findOne(
+    { _id: photo.userId },
+    { projection: { email: 1, username: 1 } }
+  );
+  if (!user) return null;
+  return { email: user.email, username: user.username, photoTitle: photo.title || 'je foto' };
+}
+
 async function upsertSubmissionScore(db, { submissionId, targetPhotoId, userId, score, submittedAt }) {
   const scores = db.collection('submission_scores');
   await scores.updateOne(
@@ -81,4 +97,5 @@ module.exports = {
   findLeaderboard,
   findUserStats,
   findUserRank,
+  findPhotoOwnerEmail,
 };

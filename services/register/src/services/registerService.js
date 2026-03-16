@@ -1,8 +1,28 @@
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 const dbQueries = require('../db/queries');
 const config = require('../config');
 const { getDb } = require('../db/connect');
+
+async function queueWelcomeEmail({ email, username, verificationToken }) {
+  if (!config.mailServiceUrl) return;
+  const verificationUrl = `http://localhost:${config.port}/api/register/verify?token=${verificationToken}`;
+  try {
+    await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
+      to: email,
+      template: 'welcome',
+      data: {
+        username,
+        verificationUrl,
+        unsubscribeUrl: `${config.mailServiceUrl}/api/mail/unsubscribe`,
+      },
+      priority: 'high',
+    });
+  } catch (err) {
+    console.error('[register] Failed to queue welcome email:', err.message);
+  }
+}
 
 function parseExpiryToMs(expiryString) {
   const match = (expiryString || '24h').match(/^(\d+)([smhd])$/);
@@ -42,6 +62,7 @@ async function register({ email, password, username, firstName, lastName }) {
     token: verificationToken,
     expiresAt,
   });
+  queueWelcomeEmail({ email: normalizedEmail, username: userDoc.username, verificationToken });
   return {
     userId: userId.toString(),
     message: 'Registration successful. Please check your email to verify your account.',

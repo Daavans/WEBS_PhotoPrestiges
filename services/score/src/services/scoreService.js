@@ -1,5 +1,32 @@
+const axios = require('axios');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
+const config = require('../config');
+
+async function queueVoteNotification({ targetPhotoId, score }) {
+  if (!config.mailServiceUrl) return;
+  try {
+    const db = getDb();
+    const owner = await queries.findPhotoOwnerEmail(db, targetPhotoId);
+    if (!owner) return;
+    const { items: allScores } = await queries.findScoresByTargetPhoto(db, targetPhotoId);
+    const totalVotes = allScores.length;
+    await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
+      to: owner.email,
+      template: 'vote_notification',
+      data: {
+        username: owner.username,
+        photoTitle: owner.photoTitle,
+        photoUrl: `${config.frontendUrl}/photos/${targetPhotoId}`,
+        totalVotes,
+        unsubscribeUrl: `${config.mailServiceUrl}/api/mail/unsubscribe`,
+      },
+      priority: 'normal',
+    });
+  } catch (err) {
+    console.error('[score] Failed to queue vote notification:', err.message);
+  }
+}
 
 async function recordSubmission({ submissionId, targetPhotoId, userId, score, submittedAt }) {
   if (typeof score !== 'number' || score < 0 || score > 100) {
@@ -8,6 +35,7 @@ async function recordSubmission({ submissionId, targetPhotoId, userId, score, su
 
   const db = getDb();
   await queries.upsertSubmissionScore(db, { submissionId, targetPhotoId, userId, score, submittedAt });
+  queueVoteNotification({ targetPhotoId, score });
   return { success: true };
 }
 
