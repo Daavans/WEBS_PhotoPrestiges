@@ -16,12 +16,12 @@ async function insertQueuedEmail(db, doc) {
   return result.insertedId;
 }
 
-async function findQueuedBatch(db, batchSize) {
+async function findQueuedBatch(db, batchSize, maxRetries) {
   const queue = db.collection('email_queue');
   return queue.find({
     $or: [
       { status: 'queued' },
-      { status: 'failed', attempts: { $lt: 3 } },
+      { status: 'failed', attempts: { $lt: maxRetries } },
     ],
   })
     .sort({ priority: -1, createdAt: 1 })
@@ -29,12 +29,14 @@ async function findQueuedBatch(db, batchSize) {
     .toArray();
 }
 
+// Returns true if this worker successfully claimed the item (atomic via status check).
 async function markEmailSending(db, id) {
   const queue = db.collection('email_queue');
-  await queue.updateOne(
-    { _id: new ObjectId(id) },
+  const result = await queue.updateOne(
+    { _id: new ObjectId(id), status: { $in: ['queued', 'failed'] } },
     { $set: { status: 'sending', lastAttemptAt: new Date() }, $inc: { attempts: 1 } }
   );
+  return result.modifiedCount === 1;
 }
 
 async function markEmailSent(db, id, messageId) {
@@ -45,11 +47,11 @@ async function markEmailSent(db, id, messageId) {
   );
 }
 
-async function markEmailFailed(db, id, errorMessage) {
+async function markEmailFailed(db, id, errorMessage, maxRetries) {
   const queue = db.collection('email_queue');
   const item = await queue.findOne({ _id: new ObjectId(id) });
   const attempts = item?.attempts || 0;
-  const status = attempts >= 3 ? 'permanently_failed' : 'failed';
+  const status = attempts >= maxRetries ? 'permanently_failed' : 'failed';
   await queue.updateOne(
     { _id: new ObjectId(id) },
     { $set: { status, error: errorMessage } }

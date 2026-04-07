@@ -1,4 +1,5 @@
 const jwtUtils = require('../utils/jwt');
+const config = require('../config');
 
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -35,4 +36,17 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+function requireServiceAuth(req, res, next) {
+  if (!config.serviceSecret) {
+    // No secret configured — only safe if port is not exposed; warn and allow
+    console.warn('[mail] SERVICE_SECRET not set; /api/mail/send is unauthenticated');
+    return next();
+  }
+  const header = req.headers['x-service-secret'];
+  if (!header || header !== config.serviceSecret) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireRole, requireServiceAuth };

@@ -13,4 +13,6 @@ module.exports = {
   frontendUrl: process.env.FRONTEND_URL || '*',
   nodeEnv: process.env.NODE_ENV || 'development',
   mailServiceUrl: process.env.MAIL_SERVICE_URL || null,
+  unsubscribeUrl: process.env.UNSUBSCRIBE_URL || 'http://localhost:3000/unsubscribe',
+  serviceSecret: process.env.SERVICE_SECRET || null,
 };

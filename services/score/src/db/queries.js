@@ -13,7 +13,7 @@ async function findPhotoOwnerEmail(db, targetPhotoId) {
     { projection: { email: 1, username: 1 } }
   );
   if (!user) return null;
-  return { email: user.email, username: user.username, photoTitle: photo.title || 'je foto' };
+  return { email: user.email, username: user.username, photoTitle: photo.title || 'je foto', userId: user._id };
 }
 
 async function upsertSubmissionScore(db, { submissionId, targetPhotoId, userId, score, submittedAt }) {

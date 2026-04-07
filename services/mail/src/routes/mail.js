@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, query, validationResult } = require('express-validator');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireServiceAuth } = require('../middleware/auth');
 const mailService = require('../services/mailService');
 
 const router = express.Router();
@@ -15,7 +15,7 @@ const sendValidators = [
   body('userId').optional().isString(),
 ];
 
-router.post('/send', sendValidators, async (req, res) => {
+router.post('/send', requireServiceAuth, sendValidators, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
@@ -105,10 +105,13 @@ router.post('/subscribe', requireAuth, subscribeValidators, async (req, res) => 
   });
 });
 
-// ── DELETE /api/mail/unsubscribe ──────────────────────────────────────────────
-router.delete('/unsubscribe', [
+// ── GET /api/mail/unsubscribe ─────────────────────────────────────────────────
+// GET-friendly so that email link clicks work directly
+const unsubscribeValidators = [
   query('token').isString().notEmpty().withMessage('Unsubscribe token required'),
-], async (req, res) => {
+];
+
+async function handleUnsubscribe(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
@@ -119,6 +122,11 @@ router.delete('/unsubscribe', [
     return res.status(404).json({ success: false, message: 'Invalid unsubscribe token' });
   }
   res.status(200).json({ success: true, message: 'Successfully unsubscribed from notifications' });
-});
+}
+
+router.get('/unsubscribe', unsubscribeValidators, handleUnsubscribe);
+
+// ── DELETE /api/mail/unsubscribe ──────────────────────────────────────────────
+router.delete('/unsubscribe', unsubscribeValidators, handleUnsubscribe);
 
 module.exports = router;

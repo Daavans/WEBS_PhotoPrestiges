@@ -5,20 +5,23 @@ const dbQueries = require('../db/queries');
 const config = require('../config');
 const { getDb } = require('../db/connect');
 
-async function queueWelcomeEmail({ email, username, verificationToken }) {
+async function queueWelcomeEmail({ email, username, verificationToken, userId }) {
   if (!config.mailServiceUrl) return;
-  const verificationUrl = `http://localhost:${config.port}/api/register/verify?token=${verificationToken}`;
+  const baseUrl = config.publicBaseUrl || `http://localhost:${config.port}`;
+  const verificationUrl = `${baseUrl}/api/register/verify?token=${verificationToken}`;
   try {
+    const headers = config.serviceSecret ? { 'X-Service-Secret': config.serviceSecret } : {};
     await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
       to: email,
       template: 'welcome',
+      userId,
       data: {
         username,
         verificationUrl,
-        unsubscribeUrl: `${config.mailServiceUrl}/api/mail/unsubscribe`,
+        unsubscribeUrl: config.unsubscribeUrl,
       },
       priority: 'high',
-    });
+    }, { headers });
   } catch (err) {
     console.error('[register] Failed to queue welcome email:', err.message);
   }
@@ -62,7 +65,7 @@ async function register({ email, password, username, firstName, lastName }) {
     token: verificationToken,
     expiresAt,
   });
-  queueWelcomeEmail({ email: normalizedEmail, username: userDoc.username, verificationToken });
+  queueWelcomeEmail({ email: normalizedEmail, username: userDoc.username, verificationToken, userId: userId.toString() });
   return {
     userId: userId.toString(),
     message: 'Registration successful. Please check your email to verify your account.',

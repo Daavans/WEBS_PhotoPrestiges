@@ -4,50 +4,75 @@ const queries = require('../db/queries');
 const mailService = require('../services/mailService');
 
 let workerInterval = null;
+let isProcessing = false;
 
-function getRetryDelayMs(attempts) {
+function getRetryDelayMs(failures) {
+  // failures = number of past send failures (attempts - 1 at delay-check time, since
+  // attempts was incremented by markEmailSending before the failure was recorded)
   const delays = [30000, 120000, 600000];
-  return delays[Math.min(attempts, delays.length - 1)];
+  return delays[Math.min(failures, delays.length - 1)];
 }
 
 async function processQueue() {
-  let db;
+  if (isProcessing) return;
+  isProcessing = true;
   try {
-    db = getDb();
-  } catch (err) {
-    return;
-  }
-
-  const now = new Date();
-  const batch = await queries.findQueuedBatch(db, config.queue.batchSize);
-
-  for (const item of batch) {
-    if (item.status === 'failed' && item.lastAttemptAt) {
-      const delay = getRetryDelayMs(item.attempts);
-      const eligible = new Date(item.lastAttemptAt.getTime() + delay);
-      if (now < eligible) continue;
-    }
-
-    await queries.markEmailSending(db, item._id);
-
+    let db;
     try {
-      const messageId = await mailService.sendEmail({
-        to: item.to,
-        template: item.template,
-        data: item.data || {},
-      });
-      await queries.markEmailSent(db, item._id, messageId || '');
-      await queries.insertEmailLog(db, {
-        userId: item.userId || null,
-        to: item.to,
-        template: item.template,
-        subject: item.subject || '',
-        messageId: messageId || '',
-        status: 'sent',
-      });
+      db = getDb();
     } catch (err) {
-      await queries.markEmailFailed(db, item._id, err.message || 'Unknown error');
+      return;
     }
+
+    const { maxRetries } = config.queue;
+    const now = new Date();
+    const batch = await queries.findQueuedBatch(db, config.queue.batchSize, maxRetries);
+
+    for (const item of batch) {
+      if (item.status === 'failed' && item.lastAttemptAt) {
+        // attempts was already incremented for the last send attempt, so the
+        // number of completed failures is item.attempts (not item.attempts - 1).
+        const delay = getRetryDelayMs(item.attempts);
+        const eligible = new Date(item.lastAttemptAt.getTime() + delay);
+        if (now < eligible) continue;
+      }
+
+      // Atomically claim the item — skip if another worker already grabbed it.
+      const claimed = await queries.markEmailSending(db, item._id);
+      if (!claimed) continue;
+
+      // Enrich template data with a user-specific unsubscribe URL.
+      const data = { ...item.data };
+      if (item.userId) {
+        try {
+          const prefs = await mailService.getPreferences(item.userId);
+          data.unsubscribeUrl = `${config.unsubscribeUrl}?token=${prefs.unsubscribeToken}`;
+        } catch (err) {
+          // Non-fatal — template will use whatever unsubscribeUrl was already in data.
+        }
+      }
+
+      try {
+        const messageId = await mailService.sendEmail({
+          to: item.to,
+          template: item.template,
+          data,
+        });
+        await queries.markEmailSent(db, item._id, messageId || '');
+        await queries.insertEmailLog(db, {
+          userId: item.userId || null,
+          to: item.to,
+          template: item.template,
+          subject: item.subject || '',
+          messageId: messageId || '',
+          status: 'sent',
+        });
+      } catch (err) {
+        await queries.markEmailFailed(db, item._id, err.message || 'Unknown error', maxRetries);
+      }
+    }
+  } finally {
+    isProcessing = false;
   }
 }
 
