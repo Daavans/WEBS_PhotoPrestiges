@@ -1,0 +1,391 @@
+{
+  "info": {
+    "_postman_id": "fc3a717f-acfa-4284-84d5-0a3cee5ec886",
+    "name": "Photo Prestiges",
+    "description": "Auth and Register service API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "verificationToken", "value": "", "type": "string" },
+    { "key": "photoId", "value": "", "type": "default" },
+    { "key": "submissionId", "value": "", "type": "default" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const json = pm.response.json();",
+              "if (json.success && json.data) {",
+              "  if (json.data.token)",
+              "    pm.collectionVariables.set(\"token\", json.data.token);",
+              "  if (json.data.refreshToken)",
+              "    pm.collectionVariables.set(\"refreshToken\", json.data.refreshToken);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"your@email.com\",\n    \"password\": \"YourPassword1!\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "http://localhost:3001/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:3001/api/auth/logout",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "auth", "logout"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Refresh token",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{ \n    \"refreshToken\": \"{{refreshToken}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "http://localhost:3001/api/auth/refresh",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "auth", "refresh"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Validate token",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:3001/api/auth/validate",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3001",
+          "path": ["api", "auth", "validate"]
+        }
+      }
+    },
+    {
+      "name": "Register - Register user",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"your@email.com\",\n  \"password\": \"YourPassword1!\",\n  \"username\": \"yourusername\",\n  \"firstName\": \"First\",\n  \"lastName\": \"Last\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "http://localhost:3002/api/register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3002",
+          "path": ["api", "register"]
+        }
+      }
+    },
+    {
+      "name": "Register - Verify email",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3002/api/register/verify?token={{verificationToken}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3002",
+          "path": ["api", "register", "verify"],
+          "query": [{ "key": "token", "value": "{{verificationToken}}" }]
+        }
+      }
+    },
+    {
+      "name": "Register - Get profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:3002/api/register/profile",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3002",
+          "path": ["api", "register", "profile"]
+        }
+      }
+    },
+    {
+      "name": "Register - Update profile",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"bio\": \"Photography enthusiast\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "http://localhost:3002/api/register/profile",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3002",
+          "path": ["api", "register", "profile"]
+        }
+      }
+    },
+    {
+      "name": "Register - Delete account",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:3002/api/register/profile",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3002",
+          "path": ["api", "register", "profile"]
+        }
+      }
+    },
+    {
+      "name": "Target - Upload Image",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "photo", "type": "file", "src": [] },
+            { "key": "title", "value": "Eiffel tower", "type": "text" },
+            { "key": "description", "value": "Triangle thing", "type": "text" },
+            { "key": "tags", "value": "Building", "type": "text" }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:3003/api/target/upload",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "upload"]
+        }
+      }
+    },
+    {
+      "name": "Target - Get Photos By User",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3003/api/target/user/<userId>?page=1&limit=20",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "user", "<userId>"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "20" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Target - Get Photo by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3003/api/target/<photoId>",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "<photoId>"]
+        }
+      }
+    },
+    {
+      "name": "Target - Update Photo",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Updated Title\",\n  \"description\": \"Updated description.\",\n  \"tags\": [\"nature\", \"photography\"]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "http://localhost:3003/api/target/<photoId>",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "<photoId>"]
+        }
+      }
+    },
+    {
+      "name": "Target - Delete Photo",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3003/api/target/<photoId>",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "<photoId>"]
+        }
+      }
+    },
+    {
+      "name": "Target - Upload Target Photo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "if (res.success) pm.collectionVariables.set('photoId', res.photo.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "photo", "type": "file", "src": [] },
+            { "key": "type", "value": "target", "type": "text" },
+            { "key": "title", "value": "Eiffel", "type": "text" },
+            { "key": "description", "value": "", "type": "text", "disabled": true },
+            { "key": "tags", "value": "", "type": "text", "disabled": true }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:3003/api/target/upload",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "upload"]
+        }
+      }
+    },
+    {
+      "name": "Target - Upload Recreation Photo",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "if (res.success) pm.collectionVariables.set('submissionId', res.submission.id);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "photo", "type": "file", "src": [] },
+            { "key": "type", "value": "photo", "type": "text" },
+            { "key": "title", "value": "Eiffel 2", "type": "text" },
+            { "key": "description", "value": "", "type": "text", "disabled": true },
+            { "key": "tags", "value": "", "type": "text", "disabled": true }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:3003/api/target/{{photoId}}/submit",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "{{photoId}}", "submit"]
+        }
+      }
+    },
+    {
+      "name": "Target - Get Submissions For Target",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:3003/api/target/{{photoId}}/submissions?page=1&limit=20",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "3003",
+          "path": ["api", "target", "{{photoId}}", "submissions"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "20" }
+          ]
+        }
+      }
+    }
+  ]
+}

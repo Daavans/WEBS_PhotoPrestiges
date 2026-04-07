@@ -15,4 +15,7 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   verificationTokenExpiry: process.env.VERIFICATION_TOKEN_EXPIRY || '24h',
   mailServiceUrl: process.env.MAIL_SERVICE_URL || null,
+  publicBaseUrl: process.env.PUBLIC_BASE_URL || null,
+  unsubscribeUrl: process.env.UNSUBSCRIBE_URL || 'http://localhost:3000/unsubscribe',
+  serviceSecret: process.env.SERVICE_SECRET || null,
 };
