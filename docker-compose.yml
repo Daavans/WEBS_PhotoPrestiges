@@ -96,6 +96,38 @@ services:
     networks:
       - photoprestiges_network
 
+  clock-service:
+    build: ./services/clock
+    container_name: clock_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3006
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges
+      MAIL_SERVICE_URL: http://mail-service:3005
+    ports:
+      - "${CLOCK_SERVICE_PORT:-3006}:3006"
+    depends_on:
+      - mongo
+      - mail-service
+    networks:
+      - photoprestiges_network
+
+  read-service:
+    build: ./services/read
+    container_name: read_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3007
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges
+    ports:
+      - "${READ_SERVICE_PORT:-3007}:3007"
+    depends_on:
+      - mongo
+    networks:
+      - photoprestiges_network
+
 volumes:
   mongo_data:
   target_uploads:
