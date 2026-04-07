@@ -4,6 +4,8 @@ const { logExecution } = require('../db/queries');
 const { cleanupExpiredSessions, cleanupExpiredVerifications } = require('./cleanupJob');
 const { aggregateUserStats } = require('./statsJob');
 const { sendWeeklySummaries } = require('./summaryJob');
+const { checkDeadlines } = require('./deadlineJob');
+const { sendDeadlineReminders } = require('./reminderJob');
 
 // Registry of all jobs: id, description, schedule, handler, enabled flag
 const jobRegistry = [
@@ -33,6 +35,20 @@ const jobRegistry = [
     description: 'Queue weekly summary emails for subscribed users',
     schedule: '0 9 * * 1',
     handler: sendWeeklySummaries,
+    enabled: true,
+  },
+  {
+    id: 'check-deadlines',
+    description: 'Check expired target contests, determine winners, mail results',
+    schedule: '* * * * *',
+    handler: checkDeadlines,
+    enabled: true,
+  },
+  {
+    id: 'send-reminders',
+    description: 'Send reminder emails to registered participants who have not submitted yet',
+    schedule: '0 * * * *',
+    handler: sendDeadlineReminders,
     enabled: true,
   },
 ];

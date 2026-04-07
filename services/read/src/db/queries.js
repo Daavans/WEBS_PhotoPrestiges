@@ -10,6 +10,43 @@ async function findPhotos(db, { filter = {}, sort = { uploadedAt: -1 }, skip = 0
   return { items, total };
 }
 
+async function findPhotosByLocation(db, { description, lat, lng, radiusKm = 10, skip = 0, limit = 20 } = {}) {
+  const photos = db.collection('photos');
+  const query = { status: 'active' };
+
+  if (lat != null && lng != null) {
+    // Geo-near query (requires 2dsphere index)
+    const results = await photos.aggregate([
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
+          distanceField: 'distance',
+          maxDistance: radiusKm * 1000,
+          spherical: true,
+          query,
+          key: 'location.coords',
+        },
+      },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { url: 0 } },
+    ]).toArray();
+    return { items: results, total: results.length };
+  }
+
+  if (description) {
+    query['location.description'] = { $regex: description, $options: 'i' };
+  } else {
+    query['location'] = { $ne: null };
+  }
+
+  const [items, total] = await Promise.all([
+    photos.find(query, { projection: { url: 0 } }).sort({ uploadedAt: -1 }).skip(skip).limit(limit).toArray(),
+    photos.countDocuments(query),
+  ]);
+  return { items, total };
+}
+
 async function findPhotoById(db, id) {
   const photos = db.collection('photos');
   let oid;
@@ -147,6 +184,7 @@ async function getPlatformStats(db) {
 
 module.exports = {
   findPhotos,
+  findPhotosByLocation,
   findPhotoById,
   findUserProfile,
   findUserStats,

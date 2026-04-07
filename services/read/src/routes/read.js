@@ -111,4 +111,30 @@ router.get('/stats', async (req, res) => {
   res.status(200).json({ success: true, data: stats });
 });
 
+// ── GET /api/read/location ──────────────────────────────────────────────────────
+// Browse targets/photos by location description or geo-coordinates.
+router.get(
+  '/location',
+  [
+    query('description').optional().isString().trim(),
+    query('lat').optional().isFloat({ min: -90, max: 90 }).toFloat(),
+    query('lng').optional().isFloat({ min: -180, max: 180 }).toFloat(),
+    query('radiusKm').optional().isFloat({ min: 0.1, max: 500 }).toFloat(),
+    query('page').optional().isInt({ min: 1 }).toInt(),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+    const { description, lat, lng, radiusKm = 10, page = 1, limit = 20 } = req.query;
+    if (!description && (lat == null || lng == null)) {
+      return res.status(400).json({ success: false, message: 'Provide description or lat+lng' });
+    }
+    const result = await readService.getPhotosByLocation({ description, lat, lng, radiusKm, page, limit });
+    res.status(200).json({ success: true, ...result });
+  }
+);
+
 module.exports = router;

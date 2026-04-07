@@ -104,6 +104,62 @@ async function updateSubmission(db, id, updates) {
   );
 }
 
+// ── Target registrations ──────────────────────────────────────────────────────
+
+async function registerForTarget(db, { userId, targetPhotoId }) {
+  const regs = db.collection('target_registrations');
+  try {
+    await regs.insertOne({
+      userId: new ObjectId(userId),
+      targetPhotoId: new ObjectId(targetPhotoId),
+      registeredAt: new Date(),
+    });
+    return { success: true };
+  } catch (err) {
+    if (err.code === 11000) return { alreadyRegistered: true };
+    throw err;
+  }
+}
+
+async function findRegistration(db, userId, targetPhotoId) {
+  const regs = db.collection('target_registrations');
+  return regs.findOne({
+    userId: new ObjectId(userId),
+    targetPhotoId: new ObjectId(targetPhotoId),
+  });
+}
+
+async function findRegisteredWithoutSubmission(db, targetPhotoId) {
+  // Returns users registered for this target who have NOT submitted yet
+  const regs = db.collection('target_registrations');
+  const subs = db.collection('submissions');
+  const registered = await regs.find({ targetPhotoId: new ObjectId(targetPhotoId) }).toArray();
+  const submittedUserIds = (await subs.find({ targetPhotoId: new ObjectId(targetPhotoId) }).toArray())
+    .map(s => s.userId.toString());
+  return registered.filter(r => !submittedUserIds.includes(r.userId.toString()));
+}
+
+async function findExpiredActiveTargets(db) {
+  const photos = db.collection('photos');
+  return photos.find({
+    type: 'target',
+    status: 'active',
+    endsAt: { $lte: new Date() },
+    winnerDetermined: { $ne: true },
+  }).toArray();
+}
+
+async function findActiveTargetsWithDeadlineSoon(db, withinMs) {
+  const photos = db.collection('photos');
+  const now = new Date();
+  const soon = new Date(now.getTime() + withinMs);
+  return photos.find({
+    type: 'target',
+    status: 'active',
+    endsAt: { $gte: now, $lte: soon },
+  }).toArray();
+}
+
 module.exports = {
   createPhoto,
   findPhotoById,
@@ -117,4 +173,9 @@ module.exports = {
   findSubmissionByUserAndTarget,
   findSubmissionsByTargetId,
   updateSubmission,
+  registerForTarget,
+  findRegistration,
+  findRegisteredWithoutSubmission,
+  findExpiredActiveTargets,
+  findActiveTargetsWithDeadlineSoon,
 };

@@ -20,7 +20,7 @@ function getFormat(mimetype) {
  * 4. Save metadata to DB
  * 5. Kick off analysis in background
  */
-async function uploadPhoto({ file, title, description, tags, userId, type = 'photo' }) {
+async function uploadPhoto({ file, title, description, tags, userId, type = 'photo', endsAt, location }) {
   const format = getFormat(file.mimetype);
   const buffer = file.buffer;
 
@@ -50,7 +50,30 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
     }
   }
 
-  // 5. Save to MongoDB
+  // 5. Parse deadline and location
+  let parsedEndsAt = null;
+  if (endsAt) {
+    const d = new Date(endsAt);
+    if (!isNaN(d.getTime()) && d > new Date()) parsedEndsAt = d;
+  }
+
+  let parsedLocation = null;
+  if (location) {
+    if (typeof location === 'string') {
+      try { parsedLocation = JSON.parse(location); } catch { parsedLocation = { description: location }; }
+    } else {
+      parsedLocation = location;
+    }
+    // Build GeoJSON point if lat/lng present
+    if (parsedLocation.lat != null && parsedLocation.lng != null) {
+      parsedLocation.coords = {
+        type: 'Point',
+        coordinates: [parseFloat(parsedLocation.lng), parseFloat(parsedLocation.lat)],
+      };
+    }
+  }
+
+  // 6. Save to MongoDB
   const db = getDb();
   const doc = {
     userId: new ObjectId(userId),
@@ -67,7 +90,10 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
     status: 'active',
     tags: parsedTags,
     analysis: null,
-    type, 
+    type,
+    endsAt: parsedEndsAt,
+    location: parsedLocation,
+    winnerDetermined: false,
   };
 
   const photoId = await queries.createPhoto(db, doc);
@@ -110,6 +136,8 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
       width: dimResult.width,
       height: dimResult.height,
       status: 'active',
+      endsAt: doc.endsAt,
+      location: doc.location,
       uploadedAt: new Date(),
     },
   };
@@ -193,6 +221,9 @@ function formatPhoto(photo) {
     height: photo.height,
     status: photo.status,
     views: photo.views,
+    endsAt: photo.endsAt || null,
+    location: photo.location || null,
+    winnerDetermined: photo.winnerDetermined || false,
     uploadedAt: photo.uploadedAt,
     updatedAt: photo.updatedAt,
   };
@@ -207,7 +238,12 @@ async function submitPhoto({ file, title, description, tags, userId, targetPhoto
   if (!targetPhoto) return { error: 'Target photo not found', status: 404 };
   if (targetPhoto.status === 'flagged') return { error: 'Target photo is not available', status: 403 };
 
-  // 2. One submission per user per target
+  // 2. Check deadline
+  if (targetPhoto.endsAt && new Date() > new Date(targetPhoto.endsAt)) {
+    return { error: 'Submission deadline has passed', status: 403 };
+  }
+
+  // 3. One submission per user per target
   const existing = await queries.findSubmissionByUserAndTarget(db, userId, targetPhotoId);
   if (existing) return { error: 'You have already submitted for this target', status: 409 };
 
@@ -330,4 +366,18 @@ async function getSubmissions(targetPhotoId, { page, limit }) {
   };
 }
 
-module.exports = { uploadPhoto, getPhoto, getUserPhotos, updatePhoto, deletePhoto, submitPhoto, getSubmissions };
+async function registerForTarget(targetPhotoId, userId) {
+  const db = getDb();
+  const target = await queries.findPhotoById(db, targetPhotoId);
+  if (!target) return { error: 'Target not found', status: 404 };
+  if (target.type !== 'target') return { error: 'Photo is not a target', status: 400 };
+  if (target.status === 'flagged') return { error: 'Target is not available', status: 403 };
+  if (target.endsAt && new Date() > new Date(target.endsAt)) {
+    return { error: 'Registration deadline has passed', status: 403 };
+  }
+  const result = await queries.registerForTarget(db, { userId, targetPhotoId });
+  if (result.alreadyRegistered) return { error: 'Already registered', status: 409 };
+  return { success: true };
+}
+
+module.exports = { uploadPhoto, getPhoto, getUserPhotos, updatePhoto, deletePhoto, submitPhoto, getSubmissions, registerForTarget };

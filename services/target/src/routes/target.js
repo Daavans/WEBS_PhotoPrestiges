@@ -17,7 +17,15 @@ router.post(
       return res.status(400).json({ success: false, message: 'No photo file provided' });
     }
 
-    const { title, description, tags, type } = req.body;
+    const { title, description, tags, type, endsAt, location } = req.body;
+
+    if (type === 'target' && endsAt) {
+      const d = new Date(endsAt);
+      if (isNaN(d.getTime()) || d <= new Date()) {
+        return res.status(400).json({ success: false, message: 'endsAt must be a valid future date' });
+      }
+    }
+
     const result = await targetService.uploadPhoto({
       file: req.file,
       title,
@@ -25,6 +33,8 @@ router.post(
       tags,
       type: type === 'target' ? 'target' : 'photo',
       userId: req.user.id,
+      endsAt: endsAt || null,
+      location: location || null,
     });
 
     if (result.error) {
@@ -179,6 +189,23 @@ router.delete(
     if (result.forbidden) return res.status(403).json({ success: false, message: 'Forbidden' });
 
     res.status(200).json({ success: true, message: 'Photo deleted successfully' });
+  }
+);
+
+// ── POST /api/target/:id/register ────────────────────────────────────────────
+// Register interest in a target contest. Authenticated.
+router.post(
+  '/:id/register',
+  requireAuth,
+  [param('id').isMongoId().withMessage('Invalid target photo id')],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+    const result = await targetService.registerForTarget(req.params.id, req.user.id);
+    if (result.error) return res.status(result.status || 400).json({ success: false, message: result.error });
+    res.status(201).json({ success: true, message: 'Registered for target' });
   }
 );
 

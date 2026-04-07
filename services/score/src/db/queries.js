@@ -91,6 +91,48 @@ async function findUserRank(db, userId) {
   return (higherCount[0]?.count ?? 0) + 1;
 }
 
+async function findSubmissionsWithTiming(db, targetPhotoId) {
+  // Returns all scores for a target, joined with submission timing for winner calculation.
+  // Formula: winnerScore = score * 0.7 + timeBonus * 0.3
+  // timeBonus = max(0, 100 - ((submittedAt - uploadedAt) / (endsAt - uploadedAt)) * 100)
+  const scores = db.collection('submission_scores');
+  const photos = db.collection('photos');
+  const { ObjectId } = require('mongodb');
+
+  const [target, allScores] = await Promise.all([
+    photos.findOne({ _id: new ObjectId(targetPhotoId) }),
+    scores.find({ targetPhotoId: new ObjectId(targetPhotoId) }).toArray(),
+  ]);
+
+  if (!target || !allScores.length) return { target, scores: [] };
+
+  const uploadedAt = target.uploadedAt ? new Date(target.uploadedAt).getTime() : null;
+  const endsAt = target.endsAt ? new Date(target.endsAt).getTime() : null;
+  const duration = endsAt && uploadedAt ? endsAt - uploadedAt : null;
+
+  const enriched = allScores.map(s => {
+    let timeBonus = 0;
+    if (duration && duration > 0 && uploadedAt) {
+      const elapsed = new Date(s.submittedAt).getTime() - uploadedAt;
+      timeBonus = Math.max(0, 100 - (elapsed / duration) * 100);
+    }
+    const winnerScore = Math.round((s.score * 0.7 + timeBonus * 0.3) * 100) / 100;
+    return { ...s, timeBonus: Math.round(timeBonus * 100) / 100, winnerScore };
+  });
+
+  enriched.sort((a, b) => b.winnerScore - a.winnerScore || b.score - a.score);
+  return { target, scores: enriched };
+}
+
+async function markWinnerDetermined(db, targetPhotoId) {
+  const { ObjectId } = require('mongodb');
+  const photos = db.collection('photos');
+  await photos.updateOne(
+    { _id: new ObjectId(targetPhotoId) },
+    { $set: { winnerDetermined: true, updatedAt: new Date() } }
+  );
+}
+
 module.exports = {
   upsertSubmissionScore,
   findScoresByTargetPhoto,
@@ -98,4 +140,6 @@ module.exports = {
   findUserStats,
   findUserRank,
   findPhotoOwnerEmail,
+  findSubmissionsWithTiming,
+  markWinnerDetermined,
 };

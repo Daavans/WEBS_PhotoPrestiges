@@ -22,6 +22,15 @@ async function ensureIndexes() {
   await photos.createIndex({ status: 1 });
   await photos.createIndex({ uploadedAt: -1 });
   await photos.createIndex({ 'tags.tag': 1 });
+  await photos.createIndex({ endsAt: 1 });
+  await photos.createIndex({ 'location.description': 'text' });
+  // 2dsphere index for geo queries
+  await photos.createIndex({ 'location.coords': '2dsphere' }).catch(() => {});
+
+  const regs = db.collection('target_registrations');
+  await regs.createIndex({ targetPhotoId: 1 });
+  await regs.createIndex({ userId: 1 });
+  await regs.createIndex({ targetPhotoId: 1, userId: 1 }, { unique: true });
 }
 
 function getDb() {

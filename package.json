@@ -11,10 +11,12 @@
     "migrate:up": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js up",
     "migrate:down": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js down",
     "migrate:status": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js status",
-    "migrate:create": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js create"
+    "migrate:create": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js create",
+    "test": "node scripts/run-tests.js"
   },
   "devDependencies": {
     "dotenv": "^16.3.1",
-    "migrate-mongo": "^11.0.0"
+    "migrate-mongo": "^11.0.0",
+    "newman": "^6.1.3"
   }
 }

@@ -58,4 +58,10 @@ async function getStats() {
   return queries.getPlatformStats(db);
 }
 
-module.exports = { getPhotos, getPhoto, getUserProfile, search, getLeaderboard, getStats };
+async function getPhotosByLocation({ description, lat, lng, radiusKm, page = 1, limit = 20 } = {}) {
+  const db = getDb();
+  const skip = (page - 1) * limit;
+  return queries.findPhotosByLocation(db, { description, lat, lng, radiusKm, skip, limit });
+}
+
+module.exports = { getPhotos, getPhoto, getUserProfile, search, getLeaderboard, getStats, getPhotosByLocation };

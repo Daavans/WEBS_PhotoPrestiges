@@ -94,4 +94,20 @@ router.get(
   }
 );
 
+// ── GET /api/score/winner/:targetPhotoId ──────────────────────────────────────
+// Determine winner for a target after its deadline. Public endpoint.
+router.get(
+  '/winner/:targetPhotoId',
+  [param('targetPhotoId').isMongoId()],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, message: 'Validation failed', errors: errors.array() });
+    }
+    const result = await scoreService.getWinner(req.params.targetPhotoId);
+    if (result.error) return res.status(result.status || 404).json({ success: false, message: result.error });
+    res.status(200).json({ success: true, ...result });
+  }
+);
+
 module.exports = router;

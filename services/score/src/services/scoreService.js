@@ -85,4 +85,47 @@ async function getUserStats(userId) {
   return { userId, rank, ...stats };
 }
 
-module.exports = { recordSubmission, getLeaderboard, getPhotoScores, getUserStats };
+async function getWinner(targetPhotoId) {
+  const db = getDb();
+  const { target, scores } = await queries.findSubmissionsWithTiming(db, targetPhotoId);
+  if (!target) return { error: 'Target not found' };
+
+  if (!target.endsAt || new Date() < new Date(target.endsAt)) {
+    return { error: 'Contest has not ended yet', status: 400 };
+  }
+
+  if (!scores.length) return { winner: null, message: 'No submissions for this target', rankings: [] };
+
+  const winner = scores[0];
+
+  // Enrich winner with username
+  const users = db.collection('users');
+  const { ObjectId } = require('mongodb');
+  const winnerUser = await users.findOne(
+    { _id: new ObjectId(winner.userId.toString()) },
+    { projection: { username: 1, email: 1 } }
+  );
+
+  return {
+    winner: {
+      userId: winner.userId.toString(),
+      username: winnerUser?.username || null,
+      submissionId: winner.submissionId,
+      score: winner.score,
+      timeBonus: winner.timeBonus,
+      winnerScore: winner.winnerScore,
+      submittedAt: winner.submittedAt,
+    },
+    rankings: scores.slice(0, 10).map((s, i) => ({
+      rank: i + 1,
+      userId: s.userId.toString(),
+      submissionId: s.submissionId,
+      score: s.score,
+      timeBonus: s.timeBonus,
+      winnerScore: s.winnerScore,
+      submittedAt: s.submittedAt,
+    })),
+  };
+}
+
+module.exports = { recordSubmission, getLeaderboard, getPhotoScores, getUserStats, getWinner };
