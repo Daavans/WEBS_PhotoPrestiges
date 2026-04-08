@@ -23,7 +23,9 @@ async function ensureIndexes() {
   await photos.createIndex({ uploadedAt: -1 });
   await photos.createIndex({ 'tags.tag': 1 });
   await photos.createIndex({ endsAt: 1 });
-  await photos.createIndex({ 'location.description': 'text' });
+  // NOTE: A text index already exists on this collection (created by read-service).
+  // MongoDB only allows one text index per collection, so we don't create another here.
+  // location.description text search is handled via regex query in the read service.
   // 2dsphere index for geo queries
   await photos.createIndex({ 'location.coords': '2dsphere' }).catch(() => {});
 

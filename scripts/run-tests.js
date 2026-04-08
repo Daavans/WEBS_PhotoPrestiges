@@ -50,10 +50,15 @@ console.log('🚀  PhotoPrestiges – testcollectie wordt uitgevoerd...\n');
 newman.run({
   collection: collectionUrl,
   envVar: [
-    { key: 'admin_token', value: ADMIN_TOKEN },
-    { key: 'user_token',  value: USER_TOKEN  },
-    { key: 'base_url_read',  value: process.env.BASE_URL_READ  || 'http://localhost:3007' },
-    { key: 'base_url_clock', value: process.env.BASE_URL_CLOCK || 'http://localhost:3006' },
+    { key: 'admin_token',        value: ADMIN_TOKEN },
+    // user_token intentionally omitted — captured dynamically via pm.environment.set in [AUTH] Login
+    { key: 'base_url_auth',      value: process.env.BASE_URL_AUTH     || 'http://localhost:3001' },
+    { key: 'base_url_register',  value: process.env.BASE_URL_REGISTER || 'http://localhost:3002' },
+    { key: 'base_url_target',    value: process.env.BASE_URL_TARGET   || 'http://localhost:3003' },
+    { key: 'base_url_score',     value: process.env.BASE_URL_SCORE    || 'http://localhost:3004' },
+    { key: 'base_url_mail',      value: process.env.BASE_URL_MAIL     || 'http://localhost:3005' },
+    { key: 'base_url_clock',     value: process.env.BASE_URL_CLOCK    || 'http://localhost:3006' },
+    { key: 'base_url_read',      value: process.env.BASE_URL_READ     || 'http://localhost:3007' },
   ],
   reporters: ['cli'],
   reporter: {
