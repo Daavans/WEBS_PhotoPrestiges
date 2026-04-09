@@ -97,7 +97,6 @@ async function findSubmissionsWithTiming(db, targetPhotoId) {
   // timeBonus = max(0, 100 - ((submittedAt - uploadedAt) / (endsAt - uploadedAt)) * 100)
   const scores = db.collection('submission_scores');
   const photos = db.collection('photos');
-  const { ObjectId } = require('mongodb');
 
   const [target, allScores] = await Promise.all([
     photos.findOne({ _id: new ObjectId(targetPhotoId) }),
@@ -125,7 +124,6 @@ async function findSubmissionsWithTiming(db, targetPhotoId) {
 }
 
 async function markWinnerDetermined(db, targetPhotoId) {
-  const { ObjectId } = require('mongodb');
   const photos = db.collection('photos');
   await photos.updateOne(
     { _id: new ObjectId(targetPhotoId) },

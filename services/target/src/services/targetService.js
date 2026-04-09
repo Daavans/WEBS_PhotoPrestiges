@@ -73,7 +73,7 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
     }
   }
 
-  // 6. Save to MongoDB
+  // 5. Save to MongoDB
   const db = getDb();
   const doc = {
     userId: new ObjectId(userId),
@@ -102,7 +102,6 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
   setImmediate(async () => {
     try {
       const analysis = await analyseImage(url);
-
       const status = isFlagged(analysis) ? 'flagged' : 'active';
 
       const analysisTagDocs = analysis.imaggaTags.map((t) => ({
@@ -143,7 +142,6 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
   };
 }
 
-
 async function getPhoto(photoId) {
   const db = getDb();
   const photo = await queries.findPhotoById(db, photoId);
@@ -151,7 +149,6 @@ async function getPhoto(photoId) {
   await queries.incrementViews(db, photoId);
   return formatPhoto(photo);
 }
-
 
 async function getUserPhotos(userId, { page, limit }) {
   const db = getDb();
@@ -187,7 +184,6 @@ async function updatePhoto(photoId, { title, description, tags }, requestingUser
   const updated = await queries.updatePhoto(db, photoId, updates);
   return { photo: formatPhoto(updated) };
 }
-
 
 async function deletePhoto(photoId, requestingUser) {
   const db = getDb();
@@ -250,16 +246,16 @@ async function submitPhoto({ file, title, description, tags, userId, targetPhoto
   const format = getFormat(file.mimetype);
   const buffer = file.buffer;
 
-  // 3. Validate dimensions
+  // 4. Validate dimensions
   const dimResult = await validateDimensions(buffer);
   if (!dimResult.valid) return { error: dimResult.message, status: 400 };
 
-  // 4. Generate thumbnail and store
+  // 5. Generate thumbnail and store
   const thumbBuffer = await generateThumbnail(buffer, format);
   const { url } = storePhoto(buffer, format);
   const { thumbnailUrl } = storeThumbnail(thumbBuffer, format);
 
-  // 5. Compare with target photo via Imagga
+  // 6. Compare with target photo via Imagga
   let score = null;
   try {
     score = await compareImages(targetPhoto.url, url);
@@ -267,7 +263,7 @@ async function submitPhoto({ file, title, description, tags, userId, targetPhoto
     console.warn('Image comparison failed, storing submission without score:', err.message);
   }
 
-  // 6. Parse user tags
+  // 7. Parse user tags
   let parsedTags = [];
   if (Array.isArray(tags)) {
     parsedTags = tags.map((t) => ({ tag: t.trim().toLowerCase(), source: 'user', confidence: 1 }));
@@ -275,10 +271,12 @@ async function submitPhoto({ file, title, description, tags, userId, targetPhoto
     try {
       const arr = JSON.parse(tags);
       parsedTags = arr.map((t) => ({ tag: t.trim().toLowerCase(), source: 'user', confidence: 1 }));
-    } catch {  }
+    } catch {
+      // ignore malformed tags
+    }
   }
 
-  // 7. Store submission in DB
+  // 8. Store submission in DB
   const doc = {
     userId: new ObjectId(userId),
     targetPhotoId: new ObjectId(targetPhotoId),
@@ -291,13 +289,13 @@ async function submitPhoto({ file, title, description, tags, userId, targetPhoto
     height: dimResult.height,
     format,
     tags: parsedTags,
-    score,          
+    score,
     analysis: null,
   };
 
   const submissionId = await queries.createSubmission(db, doc);
 
-  // 8. Notify score service (fire-and-forget)
+  // 9. Notify score service (fire-and-forget)
   if (score !== null && config.scoreServiceUrl) {
     setImmediate(async () => {
       try {
@@ -313,7 +311,7 @@ async function submitPhoto({ file, title, description, tags, userId, targetPhoto
     });
   }
 
-  // 9. Run content moderation in background
+  // 10. Run content moderation in background
   setImmediate(async () => {
     try {
       const analysis = await analyseImage(url);

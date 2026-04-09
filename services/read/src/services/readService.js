@@ -1,3 +1,4 @@
+const { ObjectId } = require('mongodb');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
 
@@ -9,7 +10,6 @@ async function getPhotos({ page = 1, limit = 20, type, sort = 'newest', tag, use
   if (type) filter.type = type;
   if (tag) filter['tags.tag'] = tag;
   if (userId) {
-    const { ObjectId } = require('mongodb');
     try { filter.userId = new ObjectId(userId); } catch { return { items: [], total: 0 }; }
   }
 

@@ -22,21 +22,16 @@ async function ensureIndexes() {
   await photos.createIndex({ status: 1, views: -1 });
   await photos.createIndex({ userId: 1, status: 1 });
   await photos.createIndex({ 'tags.tag': 1, status: 1 });
-  // Text index for search (covers title, description, tags and location.description).
-  // If the index already exists with different weights, drop it first then recreate.
+  // Full-text search index covering title, description, tags and location.description.
+  // Drops and recreates if weights differ from an existing index (codes 85/86).
+  const textIndexSpec = { title: 'text', description: 'text', 'tags.tag': 'text', 'location.description': 'text' };
+  const textIndexOpts = { name: 'photos_text_search', weights: { title: 10, description: 5, 'tags.tag': 3, 'location.description': 2 } };
   try {
-    await photos.createIndex(
-      { title: 'text', description: 'text', 'tags.tag': 'text', 'location.description': 'text' },
-      { name: 'photos_text_search', weights: { title: 10, description: 5, 'tags.tag': 3, 'location.description': 2 } }
-    );
+    await photos.createIndex(textIndexSpec, textIndexOpts);
   } catch (err) {
     if (err.code === 85 || err.code === 86) {
-      // Index exists with different options — drop and recreate
       await photos.dropIndex('photos_text_search').catch(() => {});
-      await photos.createIndex(
-        { title: 'text', description: 'text', 'tags.tag': 'text', 'location.description': 'text' },
-        { name: 'photos_text_search', weights: { title: 10, description: 5, 'tags.tag': 3, 'location.description': 2 } }
-      );
+      await photos.createIndex(textIndexSpec, textIndexOpts);
     }
   }
 }

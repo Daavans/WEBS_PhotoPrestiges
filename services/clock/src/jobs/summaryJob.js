@@ -10,7 +10,7 @@ async function sendWeeklySummaries() {
   }
 
   const db = getDb();
-  const preferences = db.collection('mail_preferences');
+  const preferences = db.collection('email_preferences');
   const users = db.collection('users');
 
   const subscribedPrefs = await preferences

@@ -1,3 +1,4 @@
+const { ObjectId } = require('mongodb');
 const axios = require('axios');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
@@ -100,7 +101,6 @@ async function getWinner(targetPhotoId) {
 
   // Enrich winner with username
   const users = db.collection('users');
-  const { ObjectId } = require('mongodb');
   const winnerUser = await users.findOne(
     { _id: new ObjectId(winner.userId.toString()) },
     { projection: { username: 1, email: 1 } }
