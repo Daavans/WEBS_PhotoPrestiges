@@ -4,6 +4,7 @@ const axios = require('axios');
 const dbQueries = require('../db/queries');
 const config = require('../config');
 const { getDb } = require('../db/connect');
+const publisher = require('../messaging/publisher');
 
 async function queueWelcomeEmail({ email, username, verificationToken, userId }) {
   if (!config.mailServiceUrl) return;
@@ -66,6 +67,14 @@ async function register({ email, password, username, firstName, lastName }) {
     expiresAt,
   });
   queueWelcomeEmail({ email: normalizedEmail, username: userDoc.username, verificationToken, userId: userId.toString() });
+  publisher.publish('user.registered', {
+    userId: userId.toString(),
+    email: normalizedEmail,
+    username: userDoc.username,
+    password_hash: userDoc.password_hash,
+    role: userDoc.role,
+    registeredAt: new Date().toISOString(),
+  });
   return {
     userId: userId.toString(),
     message: 'Registration successful. Please check your email to verify your account.',

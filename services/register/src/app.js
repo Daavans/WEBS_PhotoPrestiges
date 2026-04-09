@@ -6,6 +6,7 @@ const config = require('./config');
 const registerRoutes = require('./routes/register');
 
 const app = express();
+const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 
 app.use(helmet());
 app.use(
@@ -14,6 +15,9 @@ app.use(
     credentials: true,
   })
 );
+app.use(metricsMiddleware);
+app.get('/metrics', metricsEndpoint);
+
 app.use(express.json({ limit: '10kb' }));
 
 const generalLimiter = rateLimit({

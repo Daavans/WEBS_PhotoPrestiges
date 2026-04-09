@@ -177,32 +177,38 @@ GET    /api/read/user/{id}      - Gebruikersprofiel met stats
 ## 🚀 Getting Started
 
 ### Vereisten
-- Node.js 18+ of Python 3.9+
+- Node.js 18+
 - Docker & Docker Compose
-- Cloud provider account (AWS/GCP/Azure)
-- API keys voor image analysis en email services
+- API keys voor image analysis (Imagga) en email (Resend)
 
-### Installatie
+### Lokaal draaien (Docker Compose)
 ```bash
 # Clone de repository
 git clone https://github.com/Daavans/WEBS_PhotoPrestiges.git
 cd WEBS_PhotoPrestiges
 
-# Gedeelde .env in projectroot
+# Configuratie
 cp .env.example .env
+# Vul .env in met JWT_SECRET, RESEND_API_KEY, etc.
 
-# Root: migrations (optioneel, voor database-indexes)
-npm install
-npm run migrate:up
+# Alle services starten (inclusief RabbitMQ, Prometheus, Grafana)
+docker-compose up -d
 
-# Per service: dependencies
-cd services/auth && npm install
-cd ../register && npm install
-# ... herhaal voor andere services
+# Monitoring bereikbaar op:
+#   Grafana:    http://localhost:3000  (admin/admin)
+#   Prometheus: http://localhost:9090
+#   RabbitMQ:   http://localhost:15672 (guest/guest)
+```
 
-# Of start Auth + Register + Mongo via Docker (gedeelde .env)
-npm run docker:up
-# Of: docker-compose up -d
+### Unit tests draaien
+```bash
+# Per service
+cd services/auth && npm test
+
+# Of via het CI script (alle services)
+for svc in auth register target score mail clock read; do
+  (cd services/$svc && npm test)
+done
 ```
 
 ### Database migrations
@@ -231,7 +237,11 @@ Vereist o.a.: `MONGODB_URI`, `JWT_SECRET`, `AUTH_SERVICE_PORT`, `REGISTER_SERVIC
 ```
 WEBS_PhotoPrestiges/
 ├── README.md
-├── docker-compose.yml
+├── docker-compose.yml       # Lokale ontwikkeling
+├── docker-stack.yml         # Docker Swarm productie
+├── .github/workflows/       # GitHub Actions CI/CD
+├── monitoring/              # Prometheus + Grafana configuratie
+├── scripts/                 # Build en test scripts
 ├── .gitignore
 ├── docs/
 │   ├── architecture.md

@@ -2,6 +2,7 @@ const config = require('../config');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
 const mailService = require('../services/mailService');
+const { mailQueueSize, mailSentTotal, mailFailedTotal } = require('../middleware/metrics');
 
 let workerInterval = null;
 let isProcessing = false;
@@ -58,6 +59,7 @@ async function processQueue() {
           template: item.template,
           data,
         });
+        mailSentTotal.inc();
         await queries.markEmailSent(db, item._id, messageId || '');
         await queries.insertEmailLog(db, {
           userId: item.userId || null,
@@ -68,7 +70,10 @@ async function processQueue() {
           status: 'sent',
         });
       } catch (err) {
-        await queries.markEmailFailed(db, item._id, err.message || 'Unknown error', maxRetries);
+        const result = await queries.markEmailFailed(db, item._id, err.message || 'Unknown error', maxRetries);
+        if (result && result.value && result.value.attempts >= maxRetries) {
+          mailFailedTotal.inc();
+        }
       }
     }
   } finally {

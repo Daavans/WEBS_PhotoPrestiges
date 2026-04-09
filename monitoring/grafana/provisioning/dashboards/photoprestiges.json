@@ -1,0 +1,105 @@
+{
+  "title": "Photo Prestiges - Services Overview",
+  "uid": "photoprestiges-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "HTTP Requests per Second (all services)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP Request Duration P95 (seconden)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (job, le))",
+          "legendFormat": "{{job}} p95",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Totaal HTTP Requests",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 16 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "sum(http_requests_total)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Actieve Services (up)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 16 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "count(up == 1)",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Mail Queue Size",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "mail_queue_size",
+          "legendFormat": "Queue grootte",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Mail Verstuurd vs Mislukt",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": null,
+      "targets": [
+        {
+          "expr": "increase(mail_sent_total[5m])",
+          "legendFormat": "Verstuurd",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(mail_failed_total[5m])",
+          "legendFormat": "Mislukt",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

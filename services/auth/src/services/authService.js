@@ -7,9 +7,13 @@ const { getDb } = require('../db/connect');
 async function login(email, password) {
   const db = getDb();
   const user = await dbQueries.findUserByEmail(db, email);
-  if (!user) return null;
+  if (!user) 
+    return null;
+  
   const match = await bcrypt.compare(password, user.password_hash || '');
-  if (!match) return null;
+  if (!match) 
+    return null;
+  
   const userId = user._id.toString();
   const accessToken = jwtUtils.generateAccessToken({
     userId,

@@ -6,12 +6,16 @@ const config = require('./config');
 const authRoutes = require('./routes/auth');
 
 const app = express();
+const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 
 app.use(helmet());
 app.use(cors({
   origin: config.frontendUrl === '*' ? true : config.frontendUrl,
   credentials: true,
 }));
+app.use(metricsMiddleware);
+app.get('/metrics', metricsEndpoint);
+
 app.use(express.json({ limit: '10kb' }));
 
 const generalLimiter = rateLimit({
