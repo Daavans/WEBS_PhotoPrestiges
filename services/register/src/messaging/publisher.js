@@ -1,34 +1,41 @@
 const config = require('../config');
 
-let connection = null;
+const RETRY_DELAY_MS = 5000;
+const MAX_RETRIES = 10;
+const EXCHANGE = 'user.events';
+
 let channel = null;
 
-async function connect() {
+async function connect(retries = 0) {
   if (!config.rabbitmqUrl) return;
   try {
     const amqp = require('amqplib');
-    connection = await amqp.connect(config.rabbitmqUrl);
+    const connection = await amqp.connect(config.rabbitmqUrl);
     channel = await connection.createChannel();
-    await channel.assertQueue('user.registered', { durable: true });
-    console.log('[register] Connected to RabbitMQ');
+    // Fanout exchange: elke subscriber krijgt een eigen kopie van het bericht
+    await channel.assertExchange(EXCHANGE, 'fanout', { durable: true });
+    console.log('[register] Connected to RabbitMQ (exchange: ' + EXCHANGE + ')');
   } catch (err) {
-    console.error('[register] RabbitMQ connection failed:', err.message);
-    // Non-fatal: service works without message queue
-    channel = null;
+    if (retries >= MAX_RETRIES) {
+      console.error('[register] RabbitMQ connection failed after max retries:', err.message);
+      return;
+    }
+    console.log(`[register] RabbitMQ not ready, retrying in ${RETRY_DELAY_MS / 1000}s... (${retries + 1}/${MAX_RETRIES})`);
+    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+    return connect(retries + 1);
   }
 }
 
-function publish(queue, payload) {
+function publish(routingKey, payload) {
   if (!channel) return;
   try {
-    channel.sendToQueue(queue, Buffer.from(JSON.stringify(payload)), { persistent: true });
+    // Bij fanout exchange wordt routingKey genegeerd, maar meesturen voor leesbaarheid
+    channel.publish(EXCHANGE, routingKey, Buffer.from(JSON.stringify(payload)), { persistent: true });
   } catch (err) {
     console.error('[register] Failed to publish message:', err.message);
   }
 }
 
-async function close() {
-  if (connection) await connection.close();
-}
+async function close() {}
 
 module.exports = { connect, publish, close };

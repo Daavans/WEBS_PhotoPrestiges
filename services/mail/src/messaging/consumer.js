@@ -1,35 +1,54 @@
 const config = require('../config');
 
-let connection = null;
+const RETRY_DELAY_MS = 5000;
+const MAX_RETRIES = 10;
+const EXCHANGE = 'user.events';
+const QUEUE = 'mail.user.registered';
 
-async function startConsumer(onMessage) {
-  if (!config.rabbitmqUrl) return;
+async function connectWithRetry(retries = 0) {
+  const amqp = require('amqplib');
   try {
-    const amqp = require('amqplib');
-    connection = await amqp.connect(config.rabbitmqUrl);
-    const channel = await connection.createChannel();
-    await channel.assertQueue('user.registered', { durable: true });
-    channel.prefetch(1);
-    console.log('[mail] RabbitMQ consumer listening on user.registered');
-
-    channel.consume('user.registered', async (msg) => {
-      if (!msg) return;
-      try {
-        const payload = JSON.parse(msg.content.toString());
-        await onMessage(payload);
-        channel.ack(msg);
-      } catch (err) {
-        console.error('[mail] Failed to process RabbitMQ message:', err.message);
-        channel.nack(msg, false, false);
-      }
-    });
+    const connection = await amqp.connect(config.rabbitmqUrl);
+    console.log('[mail] Connected to RabbitMQ');
+    return connection;
   } catch (err) {
-    console.error('[mail] RabbitMQ consumer connection failed:', err.message);
+    if (retries >= MAX_RETRIES) {
+      console.error('[mail] RabbitMQ connection failed after max retries:', err.message);
+      return null;
+    }
+    console.log(`[mail] RabbitMQ not ready, retrying in ${RETRY_DELAY_MS / 1000}s... (${retries + 1}/${MAX_RETRIES})`);
+    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+    return connectWithRetry(retries + 1);
   }
 }
 
-async function close() {
-  if (connection) await connection.close();
+async function startConsumer(onMessage) {
+  if (!config.rabbitmqUrl) return;
+
+  const connection = await connectWithRetry();
+  if (!connection) return;
+
+  const channel = await connection.createChannel();
+  // Bind eigen queue aan de fanout exchange
+  await channel.assertExchange(EXCHANGE, 'fanout', { durable: true });
+  await channel.assertQueue(QUEUE, { durable: true });
+  await channel.bindQueue(QUEUE, EXCHANGE, '');
+  channel.prefetch(1);
+  console.log('[mail] Listening on queue: ' + QUEUE);
+
+  channel.consume(QUEUE, async (msg) => {
+    if (!msg) return;
+    try {
+      const payload = JSON.parse(msg.content.toString());
+      await onMessage(payload);
+      channel.ack(msg);
+    } catch (err) {
+      console.error('[mail] Failed to process RabbitMQ message:', err.message);
+      channel.nack(msg, false, false);
+    }
+  });
 }
+
+async function close() {}
 
 module.exports = { startConsumer, close };

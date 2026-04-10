@@ -51,7 +51,7 @@ async function upsertUserFromEvent(db, { userId, email, username, password_hash,
   await users.updateOne(
     { _id: new ObjectId(userId) },
     { $set: { email, username, password_hash, role: role || 'user', updatedAt: new Date() },
-      $setOnInsert: { createdAt: new Date(), deletedAt: undefined } },
+      $setOnInsert: { createdAt: new Date() } },
     { upsert: true }
   );
 }
