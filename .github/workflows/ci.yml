@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  test:
+    name: Test - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth
+          - register
+          - target
+          - score
+          - mail
+          - clock
+          - read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: services/${{ matrix.service }}
+        run: npm ci
+
+      - name: Run tests
+        working-directory: services/${{ matrix.service }}
+        run: npm test
+        env:
+          JWT_SECRET: test-secret-for-ci
+          MONGODB_URI: mongodb://localhost:27017/test
+          NODE_ENV: test
+
+      - name: Run linter
+        working-directory: services/${{ matrix.service }}
+        run: npm run lint
+        continue-on-error: true
+
+  docker-build:
+    name: Docker Build - ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth
+          - register
+          - target
+          - score
+          - mail
+          - clock
+          - read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t photoprestiges/${{ matrix.service }}:ci ./services/${{ matrix.service }}

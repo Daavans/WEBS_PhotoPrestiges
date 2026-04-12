@@ -1,0 +1,22 @@
+{
+  "name": "photoprestiges",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Photo Prestiges - Cloud Services",
+  "scripts": {
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose up -d --build",
+    "docker:logs": "docker-compose logs -f",
+    "migrate:up": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js up",
+    "migrate:down": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js down",
+    "migrate:status": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js status",
+    "migrate:create": "node -r dotenv/config node_modules/migrate-mongo/bin/migrate-mongo.js create",
+    "test": "node scripts/run-tests.js"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1",
+    "migrate-mongo": "^11.0.0",
+    "newman": "^6.1.3"
+  }
+}

@@ -1,0 +1,187 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: photoprestiges_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - photoprestiges_network
+
+  mongo:
+    image: mongo:7
+    container_name: photoprestiges_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - photoprestiges_network
+
+  auth-service:
+    build: ./services/auth
+    container_name: auth_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3001
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_auth
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "${AUTH_SERVICE_PORT:-3001}:3001"
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  register-service:
+    build: ./services/register
+    container_name: register_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3002
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_register
+      MAIL_SERVICE_URL: http://mail-service:3005
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "${REGISTER_SERVICE_PORT:-3002}:3002"
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  target-service:
+    build: ./services/target
+    container_name: target_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3003
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_target
+      UPLOAD_DIR: /uploads
+      BASE_URL: http://localhost:3003
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "${TARGET_SERVICE_PORT:-3003}:3003"
+    volumes:
+      - target_uploads:/uploads
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  score-service:
+    build: ./services/score
+    container_name: score_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3004
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_score
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "${SCORE_SERVICE_PORT:-3004}:3004"
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  mail-service:
+    build: ./services/mail
+    container_name: mail_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3005
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_mail
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    # No host port mapping — mail-service is internal-only.
+    # Other services reach it via http://mail-service:3005 on the Docker network.
+    # Expose the port only for local development by setting MAIL_SERVICE_PORT in .env
+    # and uncommenting the line below:
+    ports:
+      - "${MAIL_SERVICE_PORT:-3005}:3005"
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  clock-service:
+    build: ./services/clock
+    container_name: clock_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3006
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_clock
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "${CLOCK_SERVICE_PORT:-3006}:3006"
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  read-service:
+    build: ./services/read
+    container_name: read_service
+    env_file:
+      - .env
+    environment:
+      PORT: 3007
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_read
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "${READ_SERVICE_PORT:-3007}:3007"
+    depends_on:
+      - mongo
+      - rabbitmq
+    networks:
+      - photoprestiges_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: photoprestiges_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${PROMETHEUS_CONFIG:-./monitoring/prometheus.yml}:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - photoprestiges_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: photoprestiges_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - photoprestiges_network
+
+volumes:
+  mongo_data:
+  target_uploads:
+  grafana_data:
+
+networks:
+  photoprestiges_network:
+    driver: bridge
