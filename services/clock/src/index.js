@@ -12,9 +12,11 @@ const config = require('./config');
 const { connect } = require('./db/connect');
 const app = require('./app');
 const { startScheduler } = require('./jobs');
+const publisher = require('./messaging/publisher');
 
 async function start() {
   await connect();
+  await publisher.connect();
   startScheduler();
   app.listen(config.port, () => {
     console.log(`Clock service listening on port ${config.port}`);

@@ -14,4 +14,5 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   mailServiceUrl: process.env.MAIL_SERVICE_URL || null,
   serviceSecret: process.env.SERVICE_SECRET || null,
+  rabbitmqUrl: process.env.RABBITMQ_URL || null,
 };

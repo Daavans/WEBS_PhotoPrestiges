@@ -11,9 +11,15 @@ if (fs.existsSync(rootEnv)) {
 const config = require('./config');
 const { connect } = require('./db/connect');
 const app = require('./app');
+const { startConsumer } = require('./messaging/consumer');
+
+async function handlePhotoEvent(payload) {
+  console.log(`[read] Photo event received: ${payload.eventType} — photoId: ${payload.photoId}`);
+}
 
 async function start() {
   await connect();
+  await startConsumer(handlePhotoEvent);
   app.listen(config.port, () => {
     console.log(`Read service listening on port ${config.port}`);
   });

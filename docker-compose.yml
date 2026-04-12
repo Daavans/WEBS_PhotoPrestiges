@@ -68,12 +68,14 @@ services:
       MONGODB_URI: mongodb://mongo:27017/photoprestiges_target
       UPLOAD_DIR: /uploads
       BASE_URL: http://localhost:3003
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     ports:
       - "${TARGET_SERVICE_PORT:-3003}:3003"
     volumes:
       - target_uploads:/uploads
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - photoprestiges_network
 
@@ -85,11 +87,12 @@ services:
     environment:
       PORT: 3004
       MONGODB_URI: mongodb://mongo:27017/photoprestiges_score
-      MAIL_SERVICE_URL: http://mail-service:3005
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     ports:
       - "${SCORE_SERVICE_PORT:-3004}:3004"
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - photoprestiges_network
 
@@ -122,12 +125,12 @@ services:
     environment:
       PORT: 3006
       MONGODB_URI: mongodb://mongo:27017/photoprestiges_clock
-      MAIL_SERVICE_URL: http://mail-service:3005
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     ports:
       - "${CLOCK_SERVICE_PORT:-3006}:3006"
     depends_on:
       - mongo
-      - mail-service
+      - rabbitmq
     networks:
       - photoprestiges_network
 
@@ -139,10 +142,12 @@ services:
     environment:
       PORT: 3007
       MONGODB_URI: mongodb://mongo:27017/photoprestiges_read
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
     ports:
       - "${READ_SERVICE_PORT:-3007}:3007"
     depends_on:
       - mongo
+      - rabbitmq
     networks:
       - photoprestiges_network
 

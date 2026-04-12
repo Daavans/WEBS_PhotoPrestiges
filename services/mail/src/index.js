@@ -13,6 +13,7 @@ const { connect, getDb } = require('./db/connect');
 const app = require('./app');
 const { startWorker } = require('./workers/queueWorker');
 const { startConsumer } = require('./messaging/consumer');
+const { startMailRequestConsumer } = require('./messaging/mailRequestConsumer');
 const queries = require('./db/queries');
 
 const WELCOME_EMAIL_SUBJECT = 'Welcome to Photo Prestiges!';
@@ -33,10 +34,23 @@ async function handleUserRegistered(payload) {
   });
 }
 
+async function handleMailRequest(payload) {
+  const db = getDb();
+  await queries.insertQueuedEmail(db, {
+    to: payload.to,
+    template: payload.template,
+    userId: payload.userId || null,
+    data: payload.data || {},
+    subject: payload.subject || null,
+    priority: typeof payload.priority === 'number' ? payload.priority : 0,
+  });
+}
+
 async function start() {
   await connect();
   startWorker();
   await startConsumer(handleUserRegistered);
+  await startMailRequestConsumer(handleMailRequest);
   app.listen(config.port, () => {
     console.log(`Mail service listening on port ${config.port}`);
   });

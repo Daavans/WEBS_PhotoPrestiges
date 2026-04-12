@@ -1,8 +1,8 @@
 const { ObjectId } = require('mongodb');
-const axios = require('axios');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
 const config = require('../config');
+const publisher = require('../messaging/publisher');
 
 const SCORE_MIN = 0;
 const SCORE_MAX = 100;
@@ -13,15 +13,13 @@ const TOP_RANKINGS_COUNT = 10;
 const MAIL_PRIORITY = 'normal';
 
 async function queueVoteNotification({ targetPhotoId, score }) {
-  if (!config.mailServiceUrl) return;
   try {
     const db = getDb();
     const owner = await queries.findPhotoOwnerEmail(db, targetPhotoId);
     if (!owner) return;
     const { items: allScores } = await queries.findScoresByTargetPhoto(db, targetPhotoId);
     const totalVotes = allScores.length;
-    const headers = config.serviceSecret ? { 'X-Service-Secret': config.serviceSecret } : {};
-    await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
+    publisher.publishMail({
       to: owner.email,
       template: 'vote_notification',
       userId: owner.userId ? owner.userId.toString() : undefined,
@@ -33,7 +31,7 @@ async function queueVoteNotification({ targetPhotoId, score }) {
         unsubscribeUrl: config.unsubscribeUrl,
       },
       priority: MAIL_PRIORITY,
-    }, { headers });
+    });
   } catch (err) {
     console.error('[score] Failed to queue vote notification:', err.message);
   }

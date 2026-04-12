@@ -6,6 +6,7 @@ const config = require('../config');
 const { validateDimensions, generateThumbnail } = require('../utils/thumbnail');
 const { storePhoto, storeThumbnail } = require('../utils/storage');
 const { analyseImage, isFlagged, compareImages } = require('../utils/analysis');
+const publisher = require('../messaging/publisher');
 
 function getFormat(mimetype) {
   const map = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -97,6 +98,18 @@ async function uploadPhoto({ file, title, description, tags, userId, type = 'pho
   };
 
   const photoId = await queries.createPhoto(db, doc);
+
+  // Publish photo.uploaded event for downstream services (read, etc.)
+  publisher.publishPhoto('photo.uploaded', {
+    photoId: photoId.toString(),
+    userId,
+    type,
+    title: doc.title,
+    url,
+    thumbnailUrl,
+    tags: parsedTags.map(t => t.tag),
+    uploadedAt: new Date().toISOString(),
+  });
 
   // 6. Run image analysis in background (non-blocking)
   setImmediate(async () => {

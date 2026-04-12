@@ -1,9 +1,8 @@
-const axios = require('axios');
 const { MongoClient } = require('mongodb');
 const config = require('../config');
+const publisher = require('../messaging/publisher');
 
 const DEFAULT_DB_NAME = 'photoprestiges';
-const MAIL_TIMEOUT_MS = 5000;
 const MS_PER_HOUR = 1000 * 60 * 60;
 const DEFAULT_PHOTO_TITLE = 'the target';
 
@@ -11,8 +10,8 @@ const DEFAULT_PHOTO_TITLE = 'the target';
 // For each, finds registered participants who have NOT yet submitted.
 // Sends them a reminder email with time remaining.
 async function sendDeadlineReminders() {
-  if (!config.mailServiceUrl) {
-    console.warn('[send-reminders] MAIL_SERVICE_URL not set — skipping');
+  if (!config.rabbitmqUrl) {
+    console.warn('[send-reminders] RABBITMQ_URL not set — skipping');
     return { skipped: true };
   }
 
@@ -35,7 +34,6 @@ async function sendDeadlineReminders() {
     }).toArray();
 
     let queued = 0;
-    const headers = config.serviceSecret ? { 'X-Service-Secret': config.serviceSecret } : {};
 
     for (const target of activeTargets) {
       const targetId = target._id;
@@ -57,7 +55,7 @@ async function sendDeadlineReminders() {
         );
         if (!user) continue;
 
-        await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
+        publisher.publishMail({
           to: user.email,
           userId: user._id.toString(),
           template: 'deadline_reminder',
@@ -68,7 +66,7 @@ async function sendDeadlineReminders() {
             endsAt: target.endsAt,
             frontendUrl: config.frontendUrl,
           },
-        }, { headers, timeout: MAIL_TIMEOUT_MS }).catch(e => console.warn('[send-reminders] Mail failed:', e.message));
+        });
         queued++;
       }
     }
