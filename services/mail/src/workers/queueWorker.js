@@ -4,14 +4,15 @@ const queries = require('../db/queries');
 const mailService = require('../services/mailService');
 const { mailQueueSize, mailSentTotal, mailFailedTotal } = require('../middleware/metrics');
 
+const RETRY_DELAYS_MS = [30000, 120000, 600000];
+
 let workerInterval = null;
 let isProcessing = false;
 
 function getRetryDelayMs(failures) {
   // failures = number of past send failures (attempts - 1 at delay-check time, since
   // attempts was incremented by markEmailSending before the failure was recorded)
-  const delays = [30000, 120000, 600000];
-  return delays[Math.min(failures, delays.length - 1)];
+  return RETRY_DELAYS_MS[Math.min(failures, RETRY_DELAYS_MS.length - 1)];
 }
 
 async function processQueue() {

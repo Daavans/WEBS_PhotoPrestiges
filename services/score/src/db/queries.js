@@ -1,5 +1,14 @@
 const { ObjectId } = require('mongodb');
 
+const DEFAULT_LEADERBOARD_LIMIT = 50;
+const DEFAULT_SCORES_LIMIT = 20;
+const DEFAULT_OFFSET = 0;
+const WINNER_SCORE_WEIGHT = 0.7;
+const TIME_BONUS_WEIGHT = 0.3;
+const TIME_BONUS_MAX = 100;
+const ROUNDING_FACTOR = 100;
+const DEFAULT_PHOTO_TITLE = 'your photo';
+
 async function findPhotoOwnerEmail(db, targetPhotoId) {
   const photos = db.collection('photos');
   const photo = await photos.findOne(
@@ -13,7 +22,7 @@ async function findPhotoOwnerEmail(db, targetPhotoId) {
     { projection: { email: 1, username: 1 } }
   );
   if (!user) return null;
-  return { email: user.email, username: user.username, photoTitle: photo.title || 'je foto', userId: user._id };
+  return { email: user.email, username: user.username, photoTitle: photo.title || DEFAULT_PHOTO_TITLE, userId: user._id };
 }
 
 async function upsertSubmissionScore(db, { submissionId, targetPhotoId, userId, score, submittedAt }) {
@@ -34,7 +43,7 @@ async function upsertSubmissionScore(db, { submissionId, targetPhotoId, userId, 
   );
 }
 
-async function findScoresByTargetPhoto(db, targetPhotoId, { limit = 20, offset = 0 } = {}) {
+async function findScoresByTargetPhoto(db, targetPhotoId, { limit = DEFAULT_SCORES_LIMIT, offset = DEFAULT_OFFSET } = {}) {
   const scores = db.collection('submission_scores');
   const filter = { targetPhotoId: new ObjectId(targetPhotoId) };
   const [items, total] = await Promise.all([
@@ -44,7 +53,7 @@ async function findScoresByTargetPhoto(db, targetPhotoId, { limit = 20, offset =
   return { items, total };
 }
 
-async function findLeaderboard(db, { limit = 50, offset = 0, targetPhotoId } = {}) {
+async function findLeaderboard(db, { limit = DEFAULT_LEADERBOARD_LIMIT, offset = DEFAULT_OFFSET, targetPhotoId } = {}) {
   const scores = db.collection('submission_scores');
   const filter = targetPhotoId ? { targetPhotoId: new ObjectId(targetPhotoId) } : {};
   const [items, total] = await Promise.all([
@@ -70,7 +79,7 @@ async function findUserStats(db, userId) {
   const bestScore = userScores[0].score;
   const averageScore = userScores.reduce((sum, s) => sum + s.score, 0) / totalSubmissions;
 
-  return { totalSubmissions, bestScore, averageScore: Math.round(averageScore * 100) / 100 };
+  return { totalSubmissions, bestScore, averageScore: Math.round(averageScore * ROUNDING_FACTOR) / ROUNDING_FACTOR };
 }
 
 async function findUserRank(db, userId) {
@@ -113,10 +122,10 @@ async function findSubmissionsWithTiming(db, targetPhotoId) {
     let timeBonus = 0;
     if (duration && duration > 0 && uploadedAt) {
       const elapsed = new Date(s.submittedAt).getTime() - uploadedAt;
-      timeBonus = Math.max(0, 100 - (elapsed / duration) * 100);
+      timeBonus = Math.max(0, TIME_BONUS_MAX - (elapsed / duration) * TIME_BONUS_MAX);
     }
-    const winnerScore = Math.round((s.score * 0.7 + timeBonus * 0.3) * 100) / 100;
-    return { ...s, timeBonus: Math.round(timeBonus * 100) / 100, winnerScore };
+    const winnerScore = Math.round((s.score * WINNER_SCORE_WEIGHT + timeBonus * TIME_BONUS_WEIGHT) * ROUNDING_FACTOR) / ROUNDING_FACTOR;
+    return { ...s, timeBonus: Math.round(timeBonus * ROUNDING_FACTOR) / ROUNDING_FACTOR, winnerScore };
   });
 
   enriched.sort((a, b) => b.winnerScore - a.winnerScore || b.score - a.score);

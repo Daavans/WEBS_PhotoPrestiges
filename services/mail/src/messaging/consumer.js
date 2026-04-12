@@ -4,6 +4,7 @@ const RETRY_DELAY_MS = 5000;
 const MAX_RETRIES = 10;
 const EXCHANGE = 'user.events';
 const QUEUE = 'mail.user.registered';
+const PREFETCH_COUNT = 1;
 
 async function connectWithRetry(retries = 0) {
   const amqp = require('amqplib');
@@ -29,11 +30,11 @@ async function startConsumer(onMessage) {
   if (!connection) return;
 
   const channel = await connection.createChannel();
-  // Bind eigen queue aan de fanout exchange
+  // Bind own queue to the fanout exchange
   await channel.assertExchange(EXCHANGE, 'fanout', { durable: true });
   await channel.assertQueue(QUEUE, { durable: true });
   await channel.bindQueue(QUEUE, EXCHANGE, '');
-  channel.prefetch(1);
+  channel.prefetch(PREFETCH_COUNT);
   console.log('[mail] Listening on queue: ' + QUEUE);
 
   channel.consume(QUEUE, async (msg) => {

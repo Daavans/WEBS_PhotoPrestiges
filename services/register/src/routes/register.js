@@ -4,17 +4,25 @@ const { body, query, validationResult } = require('express-validator');
 const registerService = require('../services/registerService');
 const { requireAuth } = require('../middleware/auth');
 
+const REGISTER_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const REGISTER_RATE_LIMIT_MAX = 10;
+const PASSWORD_MIN_LENGTH = 8;
+const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 30;
+const NAME_MAX_LENGTH = 255;
+const BIO_MAX_LENGTH = 500;
+
 const router = express.Router();
 const registerLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
+  windowMs: REGISTER_RATE_LIMIT_WINDOW_MS,
+  max: REGISTER_RATE_LIMIT_MAX,
   message: { success: false, message: 'Too many registration attempts' },
 });
 
 const registerValidators = [
   body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
   body('password')
-    .isLength({ min: 8 })
+    .isLength({ min: PASSWORD_MIN_LENGTH })
     .withMessage('Password must be at least 8 characters')
     .matches(/\d/)
     .withMessage('Password must contain at least one number')
@@ -26,12 +34,12 @@ const registerValidators = [
     .withMessage('Password must contain at least one special character'),
   body('username')
     .optional({ values: 'falsy' })
-    .isLength({ min: 3, max: 30 })
+    .isLength({ min: USERNAME_MIN_LENGTH, max: USERNAME_MAX_LENGTH })
     .withMessage('Username must be 3-30 characters')
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username may only contain letters, numbers and underscore'),
-  body('firstName').optional({ values: 'falsy' }).trim().isLength({ max: 255 }),
-  body('lastName').optional({ values: 'falsy' }).trim().isLength({ max: 255 }),
+  body('firstName').optional({ values: 'falsy' }).trim().isLength({ max: NAME_MAX_LENGTH }),
+  body('lastName').optional({ values: 'falsy' }).trim().isLength({ max: NAME_MAX_LENGTH }),
 ];
 
 router.post('/', registerLimiter, registerValidators, async (req, res, next) => {
@@ -83,9 +91,9 @@ router.get('/profile', requireAuth, async (req, res) => {
 });
 
 const updateProfileValidators = [
-  body('firstName').optional({ values: 'falsy' }).trim().isLength({ max: 255 }),
-  body('lastName').optional({ values: 'falsy' }).trim().isLength({ max: 255 }),
-  body('bio').optional({ values: 'falsy' }).trim().isLength({ max: 500 }),
+  body('firstName').optional({ values: 'falsy' }).trim().isLength({ max: NAME_MAX_LENGTH }),
+  body('lastName').optional({ values: 'falsy' }).trim().isLength({ max: NAME_MAX_LENGTH }),
+  body('bio').optional({ values: 'falsy' }).trim().isLength({ max: BIO_MAX_LENGTH }),
   body('avatarUrl').optional({ values: 'falsy' }).trim().isURL().withMessage('avatarUrl must be a valid URL'),
 ];
 

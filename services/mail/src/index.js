@@ -15,6 +15,9 @@ const { startWorker } = require('./workers/queueWorker');
 const { startConsumer } = require('./messaging/consumer');
 const queries = require('./db/queries');
 
+const WELCOME_EMAIL_SUBJECT = 'Welcome to Photo Prestiges!';
+const WELCOME_EMAIL_PRIORITY = 1;
+
 async function handleUserRegistered(payload) {
   const db = getDb();
   await queries.insertQueuedEmail(db, {
@@ -25,8 +28,8 @@ async function handleUserRegistered(payload) {
       username: payload.username,
       unsubscribeUrl: config.unsubscribeUrl,
     },
-    priority: 1,
-    subject: 'Welkom bij Photo Prestiges!',
+    priority: WELCOME_EMAIL_PRIORITY,
+    subject: WELCOME_EMAIL_SUBJECT,
   });
 }
 

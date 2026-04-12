@@ -12,7 +12,7 @@ async function connect(retries = 0) {
     const amqp = require('amqplib');
     const connection = await amqp.connect(config.rabbitmqUrl);
     channel = await connection.createChannel();
-    // Fanout exchange: elke subscriber krijgt een eigen kopie van het bericht
+    // Fanout exchange: every subscriber receives its own copy of the message
     await channel.assertExchange(EXCHANGE, 'fanout', { durable: true });
     console.log('[register] Connected to RabbitMQ (exchange: ' + EXCHANGE + ')');
   } catch (err) {
@@ -29,7 +29,7 @@ async function connect(retries = 0) {
 function publish(routingKey, payload) {
   if (!channel) return;
   try {
-    // Bij fanout exchange wordt routingKey genegeerd, maar meesturen voor leesbaarheid
+    // With a fanout exchange the routingKey is ignored, but included for readability
     channel.publish(EXCHANGE, routingKey, Buffer.from(JSON.stringify(payload)), { persistent: true });
   } catch (err) {
     console.error('[register] Failed to publish message:', err.message);

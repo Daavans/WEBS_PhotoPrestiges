@@ -106,8 +106,8 @@ services:
     # Other services reach it via http://mail-service:3005 on the Docker network.
     # Expose the port only for local development by setting MAIL_SERVICE_PORT in .env
     # and uncommenting the line below:
-    # ports:
-    #   - "${MAIL_SERVICE_PORT:-3005}:3005"
+    ports:
+      - "${MAIL_SERVICE_PORT:-3005}:3005"
     depends_on:
       - mongo
       - rabbitmq

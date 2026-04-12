@@ -1,5 +1,7 @@
 const client = require('prom-client');
 
+const MS_PER_SECOND = 1000;
+
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
@@ -22,7 +24,7 @@ function metricsMiddleware(req, res, next) {
   if (req.path === '/metrics') return next();
   const start = Date.now();
   res.on('finish', () => {
-    const duration = (Date.now() - start) / 1000;
+    const duration = (Date.now() - start) / MS_PER_SECOND;
     const route = req.route ? req.route.path : req.path;
     const labels = { method: req.method, route, status_code: res.statusCode };
     httpRequestsTotal.inc(labels);

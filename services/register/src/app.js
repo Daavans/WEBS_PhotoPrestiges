@@ -8,6 +8,10 @@ const registerRoutes = require('./routes/register');
 const app = express();
 const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
 
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 100;
+const JSON_BODY_LIMIT = '10kb';
+
 app.use(helmet());
 app.use(
   cors({
@@ -18,11 +22,11 @@ app.use(
 app.use(metricsMiddleware);
 app.get('/metrics', metricsEndpoint);
 
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
 const generalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX_REQUESTS,
   message: { success: false, message: 'Too many requests' },
 });
 

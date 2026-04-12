@@ -4,16 +4,16 @@ const jwtUtils = require('../utils/jwt');
 const config = require('../config');
 const { getDb } = require('../db/connect');
 
+const DEFAULT_EXPIRY_MS = 86400000;
+
 async function login(email, password) {
   const db = getDb();
   const user = await dbQueries.findUserByEmail(db, email);
-  if (!user) 
-    return null;
-  
+  if (!user) return null;
+
   const match = await bcrypt.compare(password, user.password_hash || '');
-  if (!match) 
-    return null;
-  
+  if (!match) return null;
+
   const userId = user._id.toString();
   const accessToken = jwtUtils.generateAccessToken({
     userId,
@@ -24,7 +24,7 @@ async function login(email, password) {
   const tokenHash = dbQueries.hashToken(accessToken);
   const refreshTokenHash = dbQueries.hashToken(refreshToken);
   const decoded = jwtUtils.decodeToken(accessToken);
-  const expiresAt = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 86400000);
+  const expiresAt = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + DEFAULT_EXPIRY_MS);
   await dbQueries.createSession(db, {
     userId: user._id,
     tokenHash,

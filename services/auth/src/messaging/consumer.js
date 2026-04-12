@@ -29,7 +29,7 @@ async function startConsumer(onMessage) {
   if (!connection) return;
 
   const channel = await connection.createChannel();
-  // Bind eigen queue aan de fanout exchange
+  // Bind own queue to the fanout exchange
   await channel.assertExchange(EXCHANGE, 'fanout', { durable: true });
   await channel.assertQueue(QUEUE, { durable: true });
   await channel.bindQueue(QUEUE, EXCHANGE, '');
