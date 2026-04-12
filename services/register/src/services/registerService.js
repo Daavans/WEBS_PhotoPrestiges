@@ -4,6 +4,14 @@ const axios = require('axios');
 const dbQueries = require('../db/queries');
 const config = require('../config');
 const { getDb } = require('../db/connect');
+const publisher = require('../messaging/publisher');
+
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+const DEFAULT_EXPIRY_MS = MS_PER_DAY;
+const DEFAULT_EXPIRY_STRING = '24h';
 
 async function queueWelcomeEmail({ email, username, verificationToken, userId }) {
   if (!config.mailServiceUrl) return;
@@ -28,12 +36,12 @@ async function queueWelcomeEmail({ email, username, verificationToken, userId })
 }
 
 function parseExpiryToMs(expiryString) {
-  const match = (expiryString || '24h').match(/^(\d+)([smhd])$/);
-  if (!match) return 24 * 60 * 60 * 1000;
+  const match = (expiryString || DEFAULT_EXPIRY_STRING).match(/^(\d+)([smhd])$/);
+  if (!match) return DEFAULT_EXPIRY_MS;
   const [, num, unit] = match;
   const n = parseInt(num, 10);
-  const multipliers = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 };
-  return n * (multipliers[unit] || 86400000);
+  const multipliers = { s: MS_PER_SECOND, m: MS_PER_MINUTE, h: MS_PER_HOUR, d: MS_PER_DAY };
+  return n * (multipliers[unit] || DEFAULT_EXPIRY_MS);
 }
 
 async function register({ email, password, username, firstName, lastName }) {
@@ -66,6 +74,14 @@ async function register({ email, password, username, firstName, lastName }) {
     expiresAt,
   });
   queueWelcomeEmail({ email: normalizedEmail, username: userDoc.username, verificationToken, userId: userId.toString() });
+  publisher.publish('user.registered', {
+    userId: userId.toString(),
+    email: normalizedEmail,
+    username: userDoc.username,
+    password_hash: userDoc.password_hash,
+    role: userDoc.role,
+    registeredAt: new Date().toISOString(),
+  });
   return {
     userId: userId.toString(),
     message: 'Registration successful. Please check your email to verify your account.',

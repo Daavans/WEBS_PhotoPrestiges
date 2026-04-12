@@ -2,6 +2,9 @@ const config = require('../config');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
 const mailService = require('../services/mailService');
+const { mailQueueSize, mailSentTotal, mailFailedTotal } = require('../middleware/metrics');
+
+const RETRY_DELAYS_MS = [30000, 120000, 600000];
 
 let workerInterval = null;
 let isProcessing = false;
@@ -9,8 +12,7 @@ let isProcessing = false;
 function getRetryDelayMs(failures) {
   // failures = number of past send failures (attempts - 1 at delay-check time, since
   // attempts was incremented by markEmailSending before the failure was recorded)
-  const delays = [30000, 120000, 600000];
-  return delays[Math.min(failures, delays.length - 1)];
+  return RETRY_DELAYS_MS[Math.min(failures, RETRY_DELAYS_MS.length - 1)];
 }
 
 async function processQueue() {
@@ -58,6 +60,7 @@ async function processQueue() {
           template: item.template,
           data,
         });
+        mailSentTotal.inc();
         await queries.markEmailSent(db, item._id, messageId || '');
         await queries.insertEmailLog(db, {
           userId: item.userId || null,
@@ -68,7 +71,10 @@ async function processQueue() {
           status: 'sent',
         });
       } catch (err) {
-        await queries.markEmailFailed(db, item._id, err.message || 'Unknown error', maxRetries);
+        const result = await queries.markEmailFailed(db, item._id, err.message || 'Unknown error', maxRetries);
+        if (result && result.value && result.value.attempts >= maxRetries) {
+          mailFailedTotal.inc();
+        }
       }
     }
   } finally {

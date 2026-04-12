@@ -1,8 +1,18 @@
 const { ObjectId } = require('mongodb');
 
-async function findPhotos(db, { filter = {}, sort = { uploadedAt: -1 }, skip = 0, limit = 20 } = {}) {
+const DEFAULT_LIMIT = 20;
+const DEFAULT_LEADERBOARD_LIMIT = 50;
+const DEFAULT_RADIUS_KM = 10;
+const METERS_PER_KM = 1000;
+const SCORE_ROUNDING_FACTOR = 100;
+const PERIOD_WEEK = 'week';
+const PERIOD_MONTH = 'month';
+const DAYS_IN_WEEK = 7;
+const STATUS_ACTIVE = 'active';
+
+async function findPhotos(db, { filter = {}, sort = { uploadedAt: -1 }, skip = 0, limit = DEFAULT_LIMIT } = {}) {
   const photos = db.collection('photos');
-  const query = { status: 'active', ...filter };
+  const query = { status: STATUS_ACTIVE, ...filter };
   const [items, total] = await Promise.all([
     photos.find(query, { projection: { url: 0 } }).sort(sort).skip(skip).limit(limit).toArray(),
     photos.countDocuments(query),
@@ -10,9 +20,9 @@ async function findPhotos(db, { filter = {}, sort = { uploadedAt: -1 }, skip = 0
   return { items, total };
 }
 
-async function findPhotosByLocation(db, { description, lat, lng, radiusKm = 10, skip = 0, limit = 20 } = {}) {
+async function findPhotosByLocation(db, { description, lat, lng, radiusKm = DEFAULT_RADIUS_KM, skip = 0, limit = DEFAULT_LIMIT } = {}) {
   const photos = db.collection('photos');
-  const query = { status: 'active' };
+  const query = { status: STATUS_ACTIVE };
 
   if (lat != null && lng != null) {
     // Geo-near query (requires 2dsphere index)
@@ -21,7 +31,7 @@ async function findPhotosByLocation(db, { description, lat, lng, radiusKm = 10, 
         $geoNear: {
           near: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
           distanceField: 'distance',
-          maxDistance: radiusKm * 1000,
+          maxDistance: radiusKm * METERS_PER_KM,
           spherical: true,
           query,
           key: 'location.coords',
@@ -52,7 +62,7 @@ async function findPhotoById(db, id) {
   let oid;
   try { oid = new ObjectId(id); } catch { return null; }
   const photo = await photos.findOneAndUpdate(
-    { _id: oid, status: 'active' },
+    { _id: oid, status: STATUS_ACTIVE },
     { $inc: { views: 1 } },
     { returnDocument: 'after' }
   );
@@ -88,7 +98,7 @@ async function findUserStats(db, userId) {
         averageScore: { $avg: '$score' },
       }},
     ]).toArray(),
-    photos.countDocuments({ userId: oid, status: 'active' }),
+    photos.countDocuments({ userId: oid, status: STATUS_ACTIVE }),
   ]);
 
   const sub = submissionStats[0] || { totalSubmissions: 0, bestScore: null, averageScore: null };
@@ -98,14 +108,14 @@ async function findUserStats(db, userId) {
     totalPhotos: photoCount,
     totalSubmissions: sub.totalSubmissions,
     bestScore: sub.bestScore,
-    averageScore: sub.averageScore !== null ? Math.round(sub.averageScore * 100) / 100 : null,
+    averageScore: sub.averageScore !== null ? Math.round(sub.averageScore * SCORE_ROUNDING_FACTOR) / SCORE_ROUNDING_FACTOR : null,
   };
 }
 
-async function searchPhotos(db, query, { skip = 0, limit = 20 } = {}) {
+async function searchPhotos(db, query, { skip = 0, limit = DEFAULT_LIMIT } = {}) {
   const photos = db.collection('photos');
   const filter = {
-    status: 'active',
+    status: STATUS_ACTIVE,
     $text: { $search: query },
   };
   const [items, total] = await Promise.all([
@@ -119,15 +129,15 @@ async function searchPhotos(db, query, { skip = 0, limit = 20 } = {}) {
   return { items, total };
 }
 
-async function getLeaderboard(db, { period = 'all', skip = 0, limit = 50 } = {}) {
+async function getLeaderboard(db, { period = 'all', skip = 0, limit = DEFAULT_LEADERBOARD_LIMIT } = {}) {
   const scores = db.collection('submission_scores');
 
   const matchStage = {};
-  if (period === 'week') {
+  if (period === PERIOD_WEEK) {
     const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
+    weekAgo.setDate(weekAgo.getDate() - DAYS_IN_WEEK);
     matchStage.submittedAt = { $gte: weekAgo };
-  } else if (period === 'month') {
+  } else if (period === PERIOD_MONTH) {
     const monthAgo = new Date();
     monthAgo.setMonth(monthAgo.getMonth() - 1);
     matchStage.submittedAt = { $gte: monthAgo };
@@ -165,7 +175,7 @@ async function getLeaderboard(db, { period = 'all', skip = 0, limit = 50 } = {})
         avatarUrl: user?.avatarUrl || null,
         bestScore: entry.bestScore,
         totalSubmissions: entry.totalSubmissions,
-        averageScore: Math.round(entry.averageScore * 100) / 100,
+        averageScore: Math.round(entry.averageScore * SCORE_ROUNDING_FACTOR) / SCORE_ROUNDING_FACTOR,
       };
     })
   );
@@ -175,7 +185,7 @@ async function getLeaderboard(db, { period = 'all', skip = 0, limit = 50 } = {})
 
 async function getPlatformStats(db) {
   const [totalPhotos, totalUsers, totalSubmissions] = await Promise.all([
-    db.collection('photos').countDocuments({ status: 'active' }),
+    db.collection('photos').countDocuments({ status: STATUS_ACTIVE }),
     db.collection('users').countDocuments({ deletedAt: null }),
     db.collection('submission_scores').countDocuments({}),
   ]);

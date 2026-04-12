@@ -1,6 +1,15 @@
-const axios = require('axios');
 const { MongoClient } = require('mongodb');
 const config = require('../config');
+const publisher = require('../messaging/publisher');
+
+const DEFAULT_DB_NAME = 'photoprestiges';
+const SCORE_WEIGHT = 0.7;
+const TIME_BONUS_WEIGHT = 0.3;
+const SCORE_SCALE = 100;
+const DEFAULT_PHOTO_TITLE_OWNER = 'Your target';
+const DEFAULT_WINNER_USERNAME = 'Unknown';
+const DEFAULT_PARTICIPANT_USERNAME = 'Participant';
+const DEFAULT_PHOTO_TITLE_WINNER = 'the target';
 
 // Finds all target photos whose endsAt has passed and winner not yet determined,
 // calculates winner (score * 0.7 + timeBonus * 0.3), marks them done, and mails results.
@@ -8,7 +17,7 @@ async function checkDeadlines() {
   const client = new MongoClient(config.mongodbUri);
   await client.connect();
   const url = new URL(config.mongodbUri);
-  const db = client.db(url.pathname.slice(1) || 'photoprestiges');
+  const db = client.db(url.pathname.slice(1) || DEFAULT_DB_NAME);
 
   try {
     const photos = db.collection('photos');
@@ -43,10 +52,10 @@ async function checkDeadlines() {
         let timeBonus = 0;
         if (duration && duration > 0 && uploadedAt) {
           const elapsed = new Date(s.submittedAt).getTime() - uploadedAt;
-          timeBonus = Math.max(0, 100 - (elapsed / duration) * 100);
+          timeBonus = Math.max(0, SCORE_SCALE - (elapsed / duration) * SCORE_SCALE);
         }
-        const winnerScore = Math.round((s.score * 0.7 + timeBonus * 0.3) * 100) / 100;
-        return { ...s, timeBonus: Math.round(timeBonus * 100) / 100, winnerScore };
+        const winnerScore = Math.round((s.score * SCORE_WEIGHT + timeBonus * TIME_BONUS_WEIGHT) * SCORE_SCALE) / SCORE_SCALE;
+        return { ...s, timeBonus: Math.round(timeBonus * SCORE_SCALE) / SCORE_SCALE, winnerScore };
       });
       enriched.sort((a, b) => b.winnerScore - a.winnerScore || b.score - a.score);
 
@@ -58,41 +67,38 @@ async function checkDeadlines() {
         { $set: { winnerDetermined: true, winnerId: winner.userId, updatedAt: new Date() } }
       );
 
-      // Mail the target owner with full results
-      if (config.mailServiceUrl) {
-        const owner = await users.findOne({ _id: target.userId }, { projection: { email: 1, username: 1 } });
-        if (owner) {
-          const winnerUser = await users.findOne({ _id: winner.userId }, { projection: { username: 1, email: 1 } });
-          const headers = config.serviceSecret ? { 'X-Service-Secret': config.serviceSecret } : {};
-          await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
-            to: owner.email,
-            userId: owner._id.toString(),
-            template: 'contest_results',
+      // Publish mail requests via RabbitMQ
+      const owner = await users.findOne({ _id: target.userId }, { projection: { email: 1, username: 1 } });
+      if (owner) {
+        const winnerUser = await users.findOne({ _id: winner.userId }, { projection: { username: 1, email: 1 } });
+
+        publisher.publishMail({
+          to: owner.email,
+          userId: owner._id.toString(),
+          template: 'contest_results',
+          data: {
+            ownerUsername: owner.username || owner.email,
+            photoTitle: target.title || DEFAULT_PHOTO_TITLE_OWNER,
+            winnerUsername: winnerUser?.username || DEFAULT_WINNER_USERNAME,
+            winnerScore: winner.winnerScore,
+            totalSubmissions: allScores.length,
+            frontendUrl: config.frontendUrl,
+          },
+        });
+
+        if (winnerUser?.email) {
+          publisher.publishMail({
+            to: winnerUser.email,
+            userId: winner.userId.toString(),
+            template: 'you_won',
             data: {
-              ownerUsername: owner.username || owner.email,
-              photoTitle: target.title || 'Jouw target',
-              winnerUsername: winnerUser?.username || 'Onbekend',
+              username: winnerUser.username || DEFAULT_PARTICIPANT_USERNAME,
+              photoTitle: target.title || DEFAULT_PHOTO_TITLE_WINNER,
               winnerScore: winner.winnerScore,
-              totalSubmissions: allScores.length,
+              score: winner.score,
               frontendUrl: config.frontendUrl,
             },
-          }, { headers, timeout: 5000 }).catch(e => console.warn('[deadline] Mail failed:', e.message));
-
-          // Mail the winner separately
-          if (winnerUser?.email) {
-            await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
-              to: winnerUser.email,
-              userId: winner.userId.toString(),
-              template: 'you_won',
-              data: {
-                username: winnerUser.username || 'Deelnemer',
-                photoTitle: target.title || 'het target',
-                winnerScore: winner.winnerScore,
-                score: winner.score,
-                frontendUrl: config.frontendUrl,
-              },
-            }, { headers, timeout: 5000 }).catch(e => console.warn('[deadline] Winner mail failed:', e.message));
-          }
+          });
         }
       }
 

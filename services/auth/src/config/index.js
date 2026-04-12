@@ -15,4 +15,5 @@ module.exports = {
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '10', 10),
   frontendUrl: process.env.FRONTEND_URL || '*',
   nodeEnv: process.env.NODE_ENV || 'development',
+  rabbitmqUrl: process.env.RABBITMQ_URL || null,
 };

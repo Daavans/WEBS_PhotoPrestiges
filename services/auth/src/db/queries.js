@@ -45,6 +45,17 @@ async function deleteSessionByRefreshHash(db, refreshTokenHash) {
   return result.deletedCount > 0;
 }
 
+async function upsertUserFromEvent(db, { userId, email, username, password_hash, role }) {
+  const { ObjectId } = require('mongodb');
+  const users = db.collection('users');
+  await users.updateOne(
+    { _id: new ObjectId(userId) },
+    { $set: { email, username, password_hash, role: role || 'user', updatedAt: new Date() },
+      $setOnInsert: { createdAt: new Date() } },
+    { upsert: true }
+  );
+}
+
 module.exports = {
   hashToken,
   findUserByEmail,
@@ -52,4 +63,5 @@ module.exports = {
   findSessionByRefreshHash,
   deleteSessionByTokenHash,
   deleteSessionByRefreshHash,
+  upsertUserFromEvent,
 };

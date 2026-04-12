@@ -11,9 +11,11 @@ if (fs.existsSync(rootEnv)) {
 const config = require('./config');
 const { connect } = require('./db/connect');
 const app = require('./app');
+const publisher = require('./messaging/publisher');
 
 async function start() {
   await connect();
+  await publisher.connect();
   app.listen(config.port, () => {
     console.log(`Target service listening on port ${config.port}`);
   });

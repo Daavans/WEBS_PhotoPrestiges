@@ -1,0 +1,233 @@
+version: '3.8'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - photoprestiges_network
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - photoprestiges_network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+
+  auth-service:
+    image: photoprestiges/auth:latest
+    environment:
+      PORT: 3001
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_auth
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  register-service:
+    image: photoprestiges/register:latest
+    environment:
+      PORT: 3002
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_register
+      MAIL_SERVICE_URL: http://mail-service:3005
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      NODE_ENV: production
+    ports:
+      - "3002:3002"
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  target-service:
+    image: photoprestiges/target:latest
+    environment:
+      PORT: 3003
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_target
+      UPLOAD_DIR: /uploads
+      NODE_ENV: production
+    ports:
+      - "3003:3003"
+    volumes:
+      - target_uploads:/uploads
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  score-service:
+    image: photoprestiges/score:latest
+    environment:
+      PORT: 3004
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_score
+      MAIL_SERVICE_URL: http://mail-service:3005
+      NODE_ENV: production
+    ports:
+      - "3004:3004"
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  mail-service:
+    image: photoprestiges/mail:latest
+    environment:
+      PORT: 3005
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_mail
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      NODE_ENV: production
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+      - resend_api_key
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  clock-service:
+    image: photoprestiges/clock:latest
+    environment:
+      PORT: 3006
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_clock
+      MAIL_SERVICE_URL: http://mail-service:3005
+      NODE_ENV: production
+    ports:
+      - "3006:3006"
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+
+  read-service:
+    image: photoprestiges/read:latest
+    environment:
+      PORT: 3007
+      MONGODB_URI: mongodb://mongo:27017/photoprestiges_read
+      NODE_ENV: production
+    ports:
+      - "3007:3007"
+    networks:
+      - photoprestiges_network
+    secrets:
+      - jwt_secret
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    networks:
+      - photoprestiges_network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - photoprestiges_network
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+volumes:
+  mongo_data:
+  target_uploads:
+  grafana_data:
+
+networks:
+  photoprestiges_network:
+    driver: overlay
+
+configs:
+  prometheus_config:
+    file: ./monitoring/prometheus.yml
+
+secrets:
+  jwt_secret:
+    external: true
+  resend_api_key:
+    external: true

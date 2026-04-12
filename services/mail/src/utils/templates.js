@@ -3,15 +3,16 @@ const fs = require('fs');
 const Handlebars = require('handlebars');
 
 const TEMPLATES_DIR = path.join(__dirname, '..', 'templates');
+const DEFAULT_SUBJECT = 'Photo Prestiges';
 
 const cache = {};
 
 const SUBJECTS = {
-  welcome: 'Welkom bij Photo Prestiges!',
-  email_verification: 'Verifieer je email adres',
-  password_reset: 'Reset je wachtwoord',
-  vote_notification: 'Je foto heeft een nieuwe stem!',
-  weekly_summary: 'Je wekelijkse Photo Prestiges samenvatting',
+  welcome: 'Welcome to Photo Prestiges!',
+  email_verification: 'Verify your email address',
+  password_reset: 'Reset your password',
+  vote_notification: 'Your photo received a new vote!',
+  weekly_summary: 'Your weekly Photo Prestiges summary',
 };
 
 function getTemplate(name) {
@@ -28,7 +29,7 @@ function getTemplate(name) {
 function renderTemplate(name, data) {
   const template = getTemplate(name);
   const html = template(data);
-  const subject = SUBJECTS[name] || 'Photo Prestiges';
+  const subject = SUBJECTS[name] || DEFAULT_SUBJECT;
   return { subject, html };
 }
 

@@ -6,23 +6,32 @@ const config = require('./config');
 const targetRoutes = require('./routes/target');
 
 const app = express();
+const { metricsMiddleware, metricsEndpoint } = require('./middleware/metrics');
+
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_GENERAL_MAX = 100;
+const RATE_LIMIT_UPLOAD_MAX = 20;
+const JSON_BODY_LIMIT = '10kb';
 
 app.use(helmet());
 app.use(cors({
   origin: config.frontendUrl === '*' ? true : config.frontendUrl,
   credentials: true,
 }));
-app.use(express.json({ limit: '10kb' }));
+app.use(metricsMiddleware);
+app.get('/metrics', metricsEndpoint);
+
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
 
 const generalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_GENERAL_MAX,
   message: { success: false, message: 'Too many requests' },
 });
 
 const uploadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_UPLOAD_MAX,
   message: { success: false, message: 'Too many upload requests' },
 });
 

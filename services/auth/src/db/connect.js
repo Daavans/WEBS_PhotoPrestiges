@@ -1,6 +1,8 @@
 const { MongoClient } = require('mongodb');
 const config = require('../config');
 
+const DEFAULT_DB_NAME = 'photoprestiges';
+
 let client;
 let db;
 
@@ -9,7 +11,7 @@ async function connect() {
   client = new MongoClient(config.mongodbUri);
   await client.connect();
   const url = new URL(config.mongodbUri);
-  const dbName = url.pathname.slice(1) || 'photoprestiges';
+  const dbName = url.pathname.slice(1) || DEFAULT_DB_NAME;
   db = client.db(dbName);
   await ensureIndexes();
   return db;

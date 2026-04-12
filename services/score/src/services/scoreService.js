@@ -1,19 +1,25 @@
 const { ObjectId } = require('mongodb');
-const axios = require('axios');
 const { getDb } = require('../db/connect');
 const queries = require('../db/queries');
 const config = require('../config');
+const publisher = require('../messaging/publisher');
+
+const SCORE_MIN = 0;
+const SCORE_MAX = 100;
+const DEFAULT_LEADERBOARD_LIMIT = 50;
+const DEFAULT_SCORES_LIMIT = 20;
+const DEFAULT_OFFSET = 0;
+const TOP_RANKINGS_COUNT = 10;
+const MAIL_PRIORITY = 'normal';
 
 async function queueVoteNotification({ targetPhotoId, score }) {
-  if (!config.mailServiceUrl) return;
   try {
     const db = getDb();
     const owner = await queries.findPhotoOwnerEmail(db, targetPhotoId);
     if (!owner) return;
     const { items: allScores } = await queries.findScoresByTargetPhoto(db, targetPhotoId);
     const totalVotes = allScores.length;
-    const headers = config.serviceSecret ? { 'X-Service-Secret': config.serviceSecret } : {};
-    await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
+    publisher.publishMail({
       to: owner.email,
       template: 'vote_notification',
       userId: owner.userId ? owner.userId.toString() : undefined,
@@ -24,15 +30,15 @@ async function queueVoteNotification({ targetPhotoId, score }) {
         totalVotes,
         unsubscribeUrl: config.unsubscribeUrl,
       },
-      priority: 'normal',
-    }, { headers });
+      priority: MAIL_PRIORITY,
+    });
   } catch (err) {
     console.error('[score] Failed to queue vote notification:', err.message);
   }
 }
 
 async function recordSubmission({ submissionId, targetPhotoId, userId, score, submittedAt }) {
-  if (typeof score !== 'number' || score < 0 || score > 100) {
+  if (typeof score !== 'number' || score < SCORE_MIN || score > SCORE_MAX) {
     return { error: 'Score must be a number between 0 and 100' };
   }
 
@@ -42,7 +48,7 @@ async function recordSubmission({ submissionId, targetPhotoId, userId, score, su
   return { success: true };
 }
 
-async function getLeaderboard({ limit = 50, offset = 0, targetPhotoId } = {}) {
+async function getLeaderboard({ limit = DEFAULT_LEADERBOARD_LIMIT, offset = DEFAULT_OFFSET, targetPhotoId } = {}) {
   const db = getDb();
   const { items, total } = await queries.findLeaderboard(db, { limit, offset, targetPhotoId });
   return {
@@ -60,7 +66,7 @@ async function getLeaderboard({ limit = 50, offset = 0, targetPhotoId } = {}) {
   };
 }
 
-async function getPhotoScores(targetPhotoId, { limit = 20, offset = 0 } = {}) {
+async function getPhotoScores(targetPhotoId, { limit = DEFAULT_SCORES_LIMIT, offset = DEFAULT_OFFSET } = {}) {
   const db = getDb();
   const { items, total } = await queries.findScoresByTargetPhoto(db, targetPhotoId, { limit, offset });
   return {
@@ -116,7 +122,7 @@ async function getWinner(targetPhotoId) {
       winnerScore: winner.winnerScore,
       submittedAt: winner.submittedAt,
     },
-    rankings: scores.slice(0, 10).map((s, i) => ({
+    rankings: scores.slice(0, TOP_RANKINGS_COUNT).map((s, i) => ({
       rank: i + 1,
       userId: s.userId.toString(),
       submissionId: s.submissionId,

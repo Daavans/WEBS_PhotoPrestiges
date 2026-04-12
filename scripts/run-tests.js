@@ -2,23 +2,23 @@
 /**
  * PhotoPrestiges – Newman test runner
  *
- * Haalt de Postman-collectie op via de Postman API en voert hem uit met Newman.
+ * Fetches the Postman collection via the Postman API and runs it with Newman.
  *
- * Vereiste omgevingsvariabelen (zet in .env of geef mee als CLI-argument):
- *   POSTMAN_API_KEY  – jouw Postman API-sleutel (https://app.getpostman.com/app/settings/api-keys)
- *   ADMIN_TOKEN      – geldige JWT access token van een admin-gebruiker
- *   USER_TOKEN       – (optioneel) JWT van een gewone gebruiker (voor 403-test)
+ * Required environment variables (set in .env or pass as CLI argument):
+ *   POSTMAN_API_KEY  – your Postman API key (https://app.getpostman.com/app/settings/api-keys)
+ *   ADMIN_TOKEN      – valid JWT access token of an admin user
+ *   USER_TOKEN       – (optional) JWT of a regular user (for 403 tests)
  *
- * Gebruik:
+ * Usage:
  *   node scripts/run-tests.js
- *   of via npm:
+ *   or via npm:
  *   npm test
  */
 
 const path = require('path');
 const fs = require('fs');
 
-// Laad root .env
+// Load root .env
 const rootEnv = path.join(__dirname, '..', '.env');
 if (fs.existsSync(rootEnv)) require('dotenv').config({ path: rootEnv });
 
@@ -28,24 +28,24 @@ const POSTMAN_API_KEY = process.env.POSTMAN_API_KEY;
 const ADMIN_TOKEN     = process.env.ADMIN_TOKEN     || '';
 const USER_TOKEN      = process.env.USER_TOKEN      || '';
 
-// Collectie-UID in Postman (WEBS5 workspace)
+// Collection UID in Postman (WEBS5 workspace)
 const COLLECTION_UID  = '37359447-fdc17fb0-0ed5-47e5-aa79-f9e0e66ba4da';
 
 if (!POSTMAN_API_KEY) {
-  console.error('\n❌  Stel POSTMAN_API_KEY in via .env of als omgevingsvariabele.');
-  console.error('    Aanmaken: https://app.getpostman.com/app/settings/api-keys\n');
+  console.error('\n❌  Set POSTMAN_API_KEY via .env or as an environment variable.');
+  console.error('    Create one at: https://app.getpostman.com/app/settings/api-keys\n');
   process.exit(1);
 }
 
 if (!ADMIN_TOKEN) {
-  console.warn('\n⚠️   ADMIN_TOKEN is niet ingesteld.');
-  console.warn('    Clock-service tests zullen mislukken (vereist admin JWT).');
-  console.warn('    Login eerst via POST http://localhost:3001/api/auth/login en kopieer het token.\n');
+  console.warn('\n⚠️   ADMIN_TOKEN is not set.');
+  console.warn('    Clock-service tests will fail (requires admin JWT).');
+  console.warn('    Log in first via POST http://localhost:3001/api/auth/login and copy the token.\n');
 }
 
 const collectionUrl = `https://api.getpostman.com/collections/${COLLECTION_UID}?apikey=${POSTMAN_API_KEY}`;
 
-console.log('🚀  PhotoPrestiges – testcollectie wordt uitgevoerd...\n');
+console.log('🚀  PhotoPrestiges – running test collection...\n');
 
 newman.run({
   collection: collectionUrl,
@@ -69,7 +69,7 @@ newman.run({
   },
 }, (err, summary) => {
   if (err) {
-    console.error('\n❌  Newman fout:', err.message);
+    console.error('\n❌  Newman error:', err.message);
     process.exit(1);
   }
 
@@ -77,13 +77,13 @@ newman.run({
   const failed = stats.assertions.failed;
   const total  = stats.assertions.total;
 
-  console.log(`\n📊  Resultaat: ${total - failed}/${total} tests geslaagd`);
+  console.log(`\n📊  Results: ${total - failed}/${total} tests passed`);
 
   if (failed > 0) {
-    console.error(`❌  ${failed} test(s) mislukt\n`);
+    console.error(`❌  ${failed} test(s) failed\n`);
     process.exit(1);
   } else {
-    console.log('✅  Alle tests geslaagd!\n');
+    console.log('✅  All tests passed!\n');
     process.exit(0);
   }
 });

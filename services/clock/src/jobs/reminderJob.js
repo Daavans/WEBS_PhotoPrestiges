@@ -1,20 +1,24 @@
-const axios = require('axios');
 const { MongoClient } = require('mongodb');
 const config = require('../config');
+const publisher = require('../messaging/publisher');
+
+const DEFAULT_DB_NAME = 'photoprestiges';
+const MS_PER_HOUR = 1000 * 60 * 60;
+const DEFAULT_PHOTO_TITLE = 'the target';
 
 // Finds all active targets with a future deadline.
 // For each, finds registered participants who have NOT yet submitted.
 // Sends them a reminder email with time remaining.
 async function sendDeadlineReminders() {
-  if (!config.mailServiceUrl) {
-    console.warn('[send-reminders] MAIL_SERVICE_URL not set — skipping');
+  if (!config.rabbitmqUrl) {
+    console.warn('[send-reminders] RABBITMQ_URL not set — skipping');
     return { skipped: true };
   }
 
   const client = new MongoClient(config.mongodbUri);
   await client.connect();
   const url = new URL(config.mongodbUri);
-  const db = client.db(url.pathname.slice(1) || 'photoprestiges');
+  const db = client.db(url.pathname.slice(1) || DEFAULT_DB_NAME);
 
   try {
     const photos = db.collection('photos');
@@ -30,7 +34,6 @@ async function sendDeadlineReminders() {
     }).toArray();
 
     let queued = 0;
-    const headers = config.serviceSecret ? { 'X-Service-Secret': config.serviceSecret } : {};
 
     for (const target of activeTargets) {
       const targetId = target._id;
@@ -43,7 +46,7 @@ async function sendDeadlineReminders() {
       const pending = registered.filter(r => !submittedUserIds.includes(r.userId.toString()));
 
       const msLeft = new Date(target.endsAt).getTime() - now.getTime();
-      const hoursLeft = Math.round(msLeft / (1000 * 60 * 60));
+      const hoursLeft = Math.round(msLeft / MS_PER_HOUR);
 
       for (const reg of pending) {
         const user = await users.findOne(
@@ -52,18 +55,18 @@ async function sendDeadlineReminders() {
         );
         if (!user) continue;
 
-        await axios.post(`${config.mailServiceUrl}/api/mail/send`, {
+        publisher.publishMail({
           to: user.email,
           userId: user._id.toString(),
           template: 'deadline_reminder',
           data: {
             username: user.username || user.email,
-            photoTitle: target.title || 'het target',
+            photoTitle: target.title || DEFAULT_PHOTO_TITLE,
             hoursLeft,
             endsAt: target.endsAt,
             frontendUrl: config.frontendUrl,
           },
-        }, { headers, timeout: 5000 }).catch(e => console.warn('[send-reminders] Mail failed:', e.message));
+        });
         queued++;
       }
     }
