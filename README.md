@@ -1,6 +1,24 @@
 # Photo Prestiges - Cloud Services Eindopdracht
 
+[![CI – Tests & Docker Build](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml)
+
 Photo Prestiges is een schaalbare cloud-gebaseerde applicatie voor het organiseren van foto-wedstrijden met gamification-elementen. Het systeem maakt gebruik van een microservices-architectuur voor optimale schaalbaarheid en onderhoudbaarheid.
+
+## 🧪 CI Teststatus
+
+De CI pipeline draait automatisch bij elke push en pull request. Elke service heeft zijn eigen Jest unit-tests en Docker build check.
+
+| Service | Unit Tests | Docker Build |
+|---------|-----------|--------------|
+| auth | [![Test – auth](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| register | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| target | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| score | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| mail | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| clock | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| read | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+
+> De badge toont de status van de **laatste run** op de huidige branch. Klik op de badge voor het volledige overzicht per service en job.
 
 ## 🏗️ Architectuur Overzicht
 
