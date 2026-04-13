@@ -32,20 +32,20 @@ const USER_TOKEN      = process.env.USER_TOKEN      || '';
 const COLLECTION_UID  = '37359447-fdc17fb0-0ed5-47e5-aa79-f9e0e66ba4da';
 
 if (!POSTMAN_API_KEY) {
-  console.error('\n❌  Set POSTMAN_API_KEY via .env or as an environment variable.');
+  console.error('\n  Set POSTMAN_API_KEY via .env or as an environment variable.');
   console.error('    Create one at: https://app.getpostman.com/app/settings/api-keys\n');
   process.exit(1);
 }
 
 if (!ADMIN_TOKEN) {
-  console.warn('\n⚠️   ADMIN_TOKEN is not set.');
+  console.warn('\n   ADMIN_TOKEN is not set.');
   console.warn('    Clock-service tests will fail (requires admin JWT).');
   console.warn('    Log in first via POST http://localhost:3001/api/auth/login and copy the token.\n');
 }
 
 const collectionUrl = `https://api.getpostman.com/collections/${COLLECTION_UID}?apikey=${POSTMAN_API_KEY}`;
 
-console.log('🚀  PhotoPrestiges – running test collection...\n');
+console.log('  PhotoPrestiges – running test collection...\n');
 
 newman.run({
   collection: collectionUrl,
@@ -69,7 +69,7 @@ newman.run({
   },
 }, (err, summary) => {
   if (err) {
-    console.error('\n❌  Newman error:', err.message);
+    console.error('\n  Newman error:', err.message);
     process.exit(1);
   }
 
@@ -80,10 +80,10 @@ newman.run({
   console.log(`\n📊  Results: ${total - failed}/${total} tests passed`);
 
   if (failed > 0) {
-    console.error(`❌  ${failed} test(s) failed\n`);
+    console.error(`  ${failed} test(s) failed\n`);
     process.exit(1);
   } else {
-    console.log('✅  All tests passed!\n');
+    console.log('  All tests passed!\n');
     process.exit(0);
   }
 });
