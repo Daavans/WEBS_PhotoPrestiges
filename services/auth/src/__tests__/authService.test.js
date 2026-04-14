@@ -34,7 +34,7 @@ describe('authService', () => {
       dbQueries.findUserByEmail.mockResolvedValue({
         _id: { toString: () => 'uid1' },
         email: 'user@example.com',
-        password_hash: await bcrypt.hash('correct-password', 10),
+        password_hash: await bcrypt.hash('correct-password', 1),
         role: 'user',
       });
       const result = await authService.login('user@example.com', 'wrong-password');
@@ -42,7 +42,7 @@ describe('authService', () => {
     });
 
     it('should return tokens on successful login', async () => {
-      const passwordHash = await bcrypt.hash('correct-password', 10);
+      const passwordHash = await bcrypt.hash('correct-password', 1);
       dbQueries.findUserByEmail.mockResolvedValue({
         _id: { toString: () => 'uid1' },
         email: 'user@example.com',

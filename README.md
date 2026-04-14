@@ -1,33 +1,28 @@
 # Photo Prestiges - Cloud Services Eindopdracht
 
+[![CI – Tests & Docker Build](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml)
+
 Photo Prestiges is een schaalbare cloud-gebaseerde applicatie voor het organiseren van foto-wedstrijden met gamification-elementen. Het systeem maakt gebruik van een microservices-architectuur voor optimale schaalbaarheid en onderhoudbaarheid.
+
+## 🧪 CI Teststatus
+
+De CI pipeline draait automatisch bij elke push en pull request. Elke service heeft zijn eigen Jest unit-tests en Docker build check.
+
+| Service | Unit Tests | Docker Build |
+|---------|-----------|--------------|
+| auth | [![Test – auth](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| register | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| target | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| score | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| mail | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| clock | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
+| read | [![CI](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg)](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml) | ![Docker](https://github.com/Daavans/WEBS_PhotoPrestiges/actions/workflows/ci.yml/badge.svg) |
 
 ## 🏗️ Architectuur Overzicht
 
 Het systeem bestaat uit 7 gespecialiseerde microservices die communiceren via REST APIs:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Photo Prestiges Platform                  │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────┐  ┌──────────┐  ┌────────┐  ┌───────┐         │
-│  │  Auth   │  │ Register │  │ Target │  │ Score │         │
-│  │ Service │  │ Service  │  │Service │  │Service│         │
-│  └─────────┘  └──────────┘  └────────┘  └───────┘         │
-│                                                              │
-│  ┌─────────┐  ┌──────────┐  ┌────────┐                    │
-│  │  Mail   │  │  Clock   │  │  Read  │                    │
-│  │ Service │  │ Service  │  │Service │                    │
-│  └─────────┘  └──────────┘  └────────┘                    │
-└─────────────────────────────────────────────────────────────┘
-         │              │              │
-         ▼              ▼              ▼
-┌─────────────┐  ┌──────────────┐  ┌─────────────┐
-│Cloud Storage│  │Image Analysis│  │Email Service│
-│  (Public    │  │  (Imagga/    │  │   (SMTP)    │
-│   URLs)     │  │Google Vision)│  │             │
-└─────────────┘  └──────────────┘  └─────────────┘
-```
+![Architectuur overzicht](Architecture.png)
 
 ## 📦 Microservices
 
@@ -83,15 +78,6 @@ Het systeem bestaat uit 7 gespecialiseerde microservices die communiceren via RE
 - Gebruikersprofielen ophalen
 - Statistieken en analytics
 - Read-only queries optimaliseren (caching)
-
-## 🎮 Gamification Features
-
-- **Punten Systeem:** Gebruikers verdienen punten voor uploads en votes
-- **Badges:** Achievements voor actieve gebruikers
-- **Leaderboards:** Top fotografen en meest geliefde foto's
-- **Streaks:** Dagelijkse/wekelijkse activiteit bonussen
-- **Levels:** Gebruikers levelen op basis van activiteit
-- **Challenges:** Periodieke thematische wedstrijden
 
 ## 🔗 REST API Endpoints
 
@@ -151,28 +137,9 @@ GET    /api/read/stats          - Platform statistieken
 GET    /api/read/user/{id}      - Gebruikersprofiel met stats
 ```
 
-## ☁️ Cloud Infrastructuur
-
-### Cloud Storage
-- **Provider:** AWS S3 / Google Cloud Storage / Azure Blob Storage
-- **Gebruik:** Opslag van foto's met publieke URLs
-- **Features:** CDN integratie voor snelle delivery
-- **Security:** Signed URLs voor tijdelijke toegang (optioneel)
-
 ### Image Analysis
 - **Imagga API:** Tag detection, categorisatie, kleuranalyse
-- **Google Cloud Vision API:** Object detection, facial detection, SafeSearch
 - **Gebruik:** Automatische tags, content moderatie, categorisatie
-
-### Email Service
-- **Provider:** SendGrid / Mailgun / Amazon SES
-- **Features:** Templates, tracking, analytics
-- **Gebruik:** Transactionele emails en marketing
-
-### Database
-- **Primair:** PostgreSQL / MySQL (relationele data)
-- **Cache:** Redis (sessions, leaderboards)
-- **Optioneel:** MongoDB (flexibele data opslag)
 
 ## 🚀 Getting Started
 
@@ -188,7 +155,7 @@ git clone https://github.com/Daavans/WEBS_PhotoPrestiges.git
 cd WEBS_PhotoPrestiges
 
 # Configuratie
-cp .env.example .env
+cp .example.env .env
 # Vul .env in met JWT_SECRET, RESEND_API_KEY, etc.
 
 # Alle services starten (inclusief RabbitMQ, Prometheus, Grafana)
@@ -316,15 +283,3 @@ npm run test:integration
 # E2E tests
 npm run test:e2e
 ```
-
-## 📝 Licentie
-
-Dit project is ontwikkeld als eindopdracht voor Cloud Services.
-
-## 👥 Team
-
-Ontwikkeld door studenten voor de Cloud Services cursus.
-
-## 📧 Contact
-
-Voor vragen of suggesties, open een issue op GitHub.
